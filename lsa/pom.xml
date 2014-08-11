@@ -17,7 +17,7 @@
 
   <parent>
     <groupId>com.cloudera.datascience</groupId>
-    <artifactId>datascience-parent</artifactId>
+    <artifactId>spark-book-parent</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
 
@@ -27,19 +27,26 @@
   <name>Wikipedia Latent Semantic Analysis</name>
   <version>0.0.1-SNAPSHOT</version>
 
+  <properties>
+    <corenlp.version>3.4</corenlp.version>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>edu.stanford.nlp</groupId>
       <artifactId>stanford-corenlp</artifactId>
+      <version>${corenlp.version}</version>
     </dependency>
     <dependency>
       <groupId>edu.stanford.nlp</groupId>
       <artifactId>stanford-corenlp</artifactId>
+      <version>${corenlp.version}</version>
       <classifier>models</classifier>
     </dependency>
     <dependency>
       <groupId>edu.umd</groupId>
       <artifactId>cloud9</artifactId>
+      <version>1.1.1</version>
     </dependency>
   </dependencies>
 

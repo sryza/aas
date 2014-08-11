@@ -16,7 +16,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.cloudera.datascience</groupId>
-  <artifactId>datascience-parent</artifactId>
+  <artifactId>spark-book-parent</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Data Science Parent</name>
@@ -40,22 +40,6 @@
         <artifactId>spark-mllib_${scala.minor.version}</artifactId>
         <version>${spark.version}</version>
         <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>edu.stanford.nlp</groupId>
-        <artifactId>stanford-corenlp</artifactId>
-        <version>${corenlp.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>edu.stanford.nlp</groupId>
-        <artifactId>stanford-corenlp</artifactId>
-        <version>${corenlp.version}</version>
-        <classifier>models</classifier>
-      </dependency>
-      <dependency>
-        <groupId>edu.umd</groupId>
-        <artifactId>cloud9</artifactId>
-        <version>1.1.1</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
