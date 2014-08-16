@@ -1,6 +1,6 @@
 package com.cloudera.datascience
 
-import java.io.StringReader
+import java.io.{FileOutputStream, File, PrintStream, StringReader}
 import java.util.{Properties, StringTokenizer, HashMap, ArrayList, Arrays}
 
 import javax.xml.stream.{XMLInputFactory, XMLStreamConstants}
@@ -16,17 +16,17 @@ import org.apache.hadoop.io.Text
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
 
-import edu.stanford.nlp.pipeline.{MorphaAnnotator, Annotation, StanfordCoreNLP}
-import edu.stanford.nlp.ling.CoreAnnotations
-import edu.stanford.nlp.ling.CoreLabel
-import edu.stanford.nlp.util.{CoreMap, ArrayCoreMap}
-import edu.stanford.nlp.ling.CoreAnnotations.LemmaAnnotation
+import edu.stanford.nlp.pipeline.{Annotation, StanfordCoreNLP}
+import edu.stanford.nlp.ling.CoreAnnotations.{TokensAnnotation, SentencesAnnotation, LemmaAnnotation}
+
+import edu.umd.cloud9.collection.wikipedia.language.EnglishWikipediaPage
+import edu.umd.cloud9.collection.wikipedia.WikipediaPage
 
 case class Page(title: String, contents: String)
 
 object ParseWikipedia {
 
-  def addTermCount(map: HashMap[String, Int], term: String, count: Int) {
+  private def addTermCount(map: HashMap[String, Int], term: String, count: Int) {
     map.put(term, (map.getOrElse(term, 0) + count))
   }
 
@@ -45,10 +45,14 @@ object ParseWikipedia {
       }
       termFreqsInDoc
     })
-    docTermFreqs.cache()
+//    docTermFreqs.cache()
+    val docFreqs = documentFrequencies(docTermFreqs)
+    print("number of terms: " + docFreqs.size)
+    saveDocFreqs("docfreqs.tsv", docFreqs)
+    System.exit(0)
     val numDocs = docTermFreqs.count().toInt
 
-    val idfs = inverseDocumentFrequencies(docTermFreqs, numDocs)
+    val idfs = inverseDocumentFrequencies(docFreqs, numDocs)
 
     // maps terms to their indexes in the vector
     val termIndexes = new HashMap[String, Int]()
@@ -70,9 +74,8 @@ object ParseWikipedia {
     vecs
   }
 
-  def inverseDocumentFrequencies(docTermFreqs: RDD[HashMap[String, Int]], numDocs: Int):
-      HashMap[String, Double] = {
-    val docFreqs = docTermFreqs.aggregate(new HashMap[String, Int]())(
+  def documentFrequencies(docTermFreqs: RDD[HashMap[String, Int]]): HashMap[String, Int] = {
+    docTermFreqs.aggregate(new HashMap[String, Int]())(
       (dfs, tfs) => {
         tfs.keySet().foreach{ term =>
           addTermCount(dfs, term, 1)
@@ -86,6 +89,10 @@ object ParseWikipedia {
         dfs1
       }
     )
+  }
+
+  def inverseDocumentFrequencies(docFreqs: HashMap[String, Int], numDocs: Int):
+      HashMap[String, Double] = {
     val idfs = new HashMap[String, Double]()
     for ((term, count) <- docFreqs) {
       idfs.put(term, math.log(numDocs / count))
@@ -93,21 +100,42 @@ object ParseWikipedia {
     idfs
   }
 
-  def tfidf(term: String, docTermFreqs: HashMap[String, Int], totalTerms: Int,
-      docFreqs: HashMap[String, Int], totalDocs: Int): Double = {
-    // TODO: can calculate this in the driver
-    val idf = math.log(totalDocs / docFreqs(term))
-    val tf = docTermFreqs(term) / totalTerms
-    tf * idf
-  }
-
-  def readFile(path: String, sc: SparkContext): RDD[Page] = {
+  def readFile(path: String, sc: SparkContext): RDD[String] = {
     val conf = new Configuration()
     conf.set(XmlInputFormat.START_TAG_KEY, "<page>")
     conf.set(XmlInputFormat.END_TAG_KEY, "</page>")
     val rawXmls = sc.newAPIHadoopFile(path, classOf[XmlInputFormat], classOf[LongWritable],
       classOf[Text], conf)
-    rawXmls.map(p => parsePage(p._2.toString))
+    rawXmls.map(p => p._2.toString)
+  }
+
+  def wikiXmlToPlainText(pageXml: String): String = {
+    val page = new EnglishWikipediaPage()
+    WikipediaPage.readPage(page, pageXml)
+    if (page.isEmpty()) "" else page.getContent()
+  }
+
+  def createPipeline(): StanfordCoreNLP = {
+    val props = new Properties()
+    props.put("annotators", "tokenize, ssplit, pos, lemma")
+    new StanfordCoreNLP(props)
+  }
+
+  def plainTextToLemmas(text: String, stopWords: Set[String], pipeline: StanfordCoreNLP)
+      : Seq[String] = {
+    val doc = new Annotation(text)
+    pipeline.annotate(doc)
+    val lemmas = new ArrayBuffer[String]()
+    val sentences = doc.get(classOf[SentencesAnnotation])
+    for (sentence <- sentences) {
+      for (token <- sentence.get(classOf[TokensAnnotation])) {
+        val lemma = token.get(classOf[LemmaAnnotation])
+        if (lemma.length > 2 && !stopWords.contains(lemma) && isOnlyLetters(lemma)) {
+          lemmas += lemma
+        }
+      }
+    }
+    lemmas
   }
 
   def parsePage(pageXml: String): Page = {
@@ -157,59 +185,6 @@ object ParseWikipedia {
     new Page(titleBuilder.toString(), textBuilder.toString())
   }
 
-  def lemmatize(words: Seq[String]): Seq[String] = {
-    val coreLabels = new ArrayList[CoreLabel]()
-    words.foreach{ word =>
-      val label = new CoreLabel()
-      label.setWord(word)
-      coreLabels += label
-    }
-
-    val sentence = new ArrayCoreMap()
-    sentence.set(classOf[CoreAnnotations.TokensAnnotation], coreLabels)
-    val sentences = new ArrayList[CoreMap](1)
-    sentences.add(sentence)
-    val doc = new Annotation(sentences)
-
-    val annotator = new MorphaAnnotator()
-    annotator.annotate(doc)
-
-    coreLabels.map(_.get(classOf[LemmaAnnotation]))
-  }
-
-  def stripFormattingAndFindTerms(str: String, stopWords: Set[String]): Seq[String] = {
-    val tokenizer = new StringTokenizer(str)
-    val terms = new ArrayBuffer[String]()
-    while (tokenizer.hasMoreTokens) {
-      val token = tokenizer.nextToken()
-      if (!token.startsWith("<") && !token.endsWith(">") && !token.startsWith("{")
-          && !token.endsWith("}")) {
-        var trimmed = trimFormatting(token)
-        if (trimmed.endsWith("'s")) {
-          trimmed = trimmed.substring(0, trimmed.length-2)
-        }
-
-        if (trimmed.length > 0 && !stopWords.contains(trimmed) && isOnlyLetters(trimmed)) {
-          terms += trimmed.toLowerCase
-        }
-      }
-    }
-    terms
-  }
-
-  def trimFormatting(str: String): String = {
-    var start = 0
-    while (start < str.length() && !Character.isLetter(str.charAt(start))) {
-      start += 1
-    }
-    var end = str.length - 1
-    while (end >= 0 && !Character.isLetter(str.charAt(end))) {
-      end -= 1
-    }
-
-    if (start >= end+1) "" else str.substring(start, end+1)
-  }
-
   def isOnlyLetters(str: String): Boolean = {
     var i = 0
     while (i < str.length) {
@@ -219,6 +194,16 @@ object ParseWikipedia {
       i += 1
     }
     true
+  }
+
+  def loadStopWords(path: String) = scala.io.Source.fromFile(path).getLines.toSet
+
+  def saveDocFreqs(path: String, docFreqs: HashMap[String, Int]) {
+    val ps = new PrintStream(new FileOutputStream(path))
+    for ((doc, freq) <- docFreqs) {
+      ps.println(s"$doc\t$freq")
+    }
+    ps.close()
   }
 }
 
