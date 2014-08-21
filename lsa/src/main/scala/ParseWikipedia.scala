@@ -1,12 +1,11 @@
 package com.cloudera.datascience
 
-import java.io.{FileOutputStream, File, PrintStream, StringReader}
-import java.util.{Properties, StringTokenizer, HashMap, ArrayList, Arrays}
-
-import javax.xml.stream.{XMLInputFactory, XMLStreamConstants}
+import java.io.{FileOutputStream, PrintStream}
+import java.util.{Properties, HashMap}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
 import org.apache.spark.mllib.linalg.{Vectors, Vector}
 
 import org.apache.hadoop.conf.Configuration
@@ -14,6 +13,7 @@ import org.apache.hadoop.io.LongWritable
 import org.apache.hadoop.io.Text
 
 import scala.collection.JavaConversions._
+import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
 
 import edu.stanford.nlp.pipeline.{Annotation, StanfordCoreNLP}
@@ -34,8 +34,8 @@ object ParseWikipedia {
    * Returns a term-document matrix where each element is the TF-IDF of the row's document and
    * the column's term.
    */
-  def termDocumentMatrix(docs: RDD[Seq[String]], stopWords: Set[String], sc: SparkContext):
-      RDD[Vector] = {
+  def termDocumentMatrix(docs: RDD[Seq[String]], stopWords: Set[String], numTerms: Int,
+      sc: SparkContext): (RDD[Vector], Map[Int, String]) = {
     val docTermFreqs = docs.map(terms => {
       val termFreqsInDoc = terms.foldLeft(new HashMap[String, Int]()) {
         (map, term) => {
@@ -45,20 +45,20 @@ object ParseWikipedia {
       }
       termFreqsInDoc
     })
-//    docTermFreqs.cache()
-    val docFreqs = documentFrequencies(docTermFreqs)
-    print("number of terms: " + docFreqs.size)
+    docTermFreqs.cache()
+    val docFreqs = documentFrequencies(docTermFreqs, numTerms)
+    println("Number of terms: " + docFreqs.size)
     saveDocFreqs("docfreqs.tsv", docFreqs)
-    System.exit(0)
+
     val numDocs = docTermFreqs.count().toInt
 
     val idfs = inverseDocumentFrequencies(docFreqs, numDocs)
 
-    // maps terms to their indexes in the vector
-    val termIndexes = new HashMap[String, Int]()
+    // maps terms to their indices in the vector
+    val termIndices = new HashMap[String, Int]()
     var index = 0
     for (term <- idfs.keySet()) {
-      termIndexes += (term -> index)
+      termIndices += (term -> index)
       index += 1
     }
 
@@ -66,14 +66,17 @@ object ParseWikipedia {
 
     val vecs = docTermFreqs.map(docTermFreqs => {
       val docTotalTerms = docTermFreqs.values().sum
-      val termScores = docTermFreqs.map{
-        case (term, freq) => (termIndexes(term), bIdfs(term) * docTermFreqs(term) / docTotalTerms)
+      // TODO: this could be more performant?
+      val termScores = docTermFreqs.filter{
+        case (term, freq) => termIndices.containsKey(term)
+      }.map{
+        case (term, freq) => (termIndices(term), bIdfs(term) * docTermFreqs(term) / docTotalTerms)
       }.toSeq
       Vectors.sparse(index, termScores)
     })
-    vecs
+    (vecs, termIndices.map(_.swap))
   }
-
+/*
   def documentFrequencies(docTermFreqs: RDD[HashMap[String, Int]]): HashMap[String, Int] = {
     docTermFreqs.aggregate(new HashMap[String, Int]())(
       (dfs, tfs) => {
@@ -90,12 +93,27 @@ object ParseWikipedia {
       }
     )
   }
+  */
 
-  def inverseDocumentFrequencies(docFreqs: HashMap[String, Int], numDocs: Int):
+  def documentFrequencies(docTermFreqs: RDD[HashMap[String, Int]], numTerms: Int)
+      : Array[(Int, String)] = {
+    val docFreqs = docTermFreqs.flatMap(_.keySet()).map((_, 1)).reduceByKey(_ + _, 15)
+    val freqTerms = docFreqs.map(termFreq => (termFreq._2, termFreq._1))
+    val ordering = new Ordering[(Int, String)] {
+      def compare(x: (Int, String), y: (Int, String)): Int = x._1 - y._1
+    }
+    freqTerms.top(numTerms)(ordering)
+  }
+
+  def trimLeastFrequent(freqs: Map[String, Int], numToKeep: Int): Map[String, Int] = {
+    freqs.toArray.sortBy(_._2).take(math.min(numToKeep, freqs.size)).toMap
+  }
+
+  def inverseDocumentFrequencies(docFreqs: Array[(Int, String)], numDocs: Int):
       HashMap[String, Double] = {
     val idfs = new HashMap[String, Double]()
-    for ((term, count) <- docFreqs) {
-      idfs.put(term, math.log(numDocs / count))
+    for ((count, term) <- docFreqs) {
+      idfs.put(term, math.log10(numDocs / count))
     }
     idfs
   }
@@ -112,7 +130,8 @@ object ParseWikipedia {
   def wikiXmlToPlainText(pageXml: String): String = {
     val page = new EnglishWikipediaPage()
     WikipediaPage.readPage(page, pageXml)
-    if (page.isEmpty()) "" else page.getContent()
+    if (page.isEmpty || !page.isArticle || page.isDisambiguation || page.isRedirect) ""
+    else page.getContent
   }
 
   def createPipeline(): StanfordCoreNLP = {
@@ -131,58 +150,11 @@ object ParseWikipedia {
       for (token <- sentence.get(classOf[TokensAnnotation])) {
         val lemma = token.get(classOf[LemmaAnnotation])
         if (lemma.length > 2 && !stopWords.contains(lemma) && isOnlyLetters(lemma)) {
-          lemmas += lemma
+          lemmas += lemma.toLowerCase
         }
       }
     }
     lemmas
-  }
-
-  def parsePage(pageXml: String): Page = {
-    val factory = XMLInputFactory.newInstance()
-    val streamParser = factory.createXMLStreamReader(new StringReader(pageXml))
-    val titleBuilder = new StringBuilder()
-    val textBuilder = new StringBuilder()
-    var inTitle = false
-    var inText = false
-    while (streamParser.hasNext()) {
-      val event = streamParser.next()
-      event match {
-        case XMLStreamConstants.START_ELEMENT => {
-          if (inTitle) {
-            titleBuilder.append("<" + streamParser.getLocalName() + ">")
-          } else if (inText) {
-            textBuilder.append("<" + streamParser.getLocalName() + ">")
-          }
-          if (streamParser.getLocalName().equalsIgnoreCase("title")) {
-            inTitle = true
-          } else if (streamParser.getLocalName().equalsIgnoreCase("text")) {
-            inText = true
-          }
-        }
-        case XMLStreamConstants.END_ELEMENT => {
-          if (streamParser.getLocalName().equalsIgnoreCase("title")) {
-            inTitle = false
-          } else if (streamParser.getLocalName().equalsIgnoreCase("text")) {
-            inText = false
-          }
-          if (inTitle) {
-            titleBuilder.append("</" + streamParser.getLocalName() + ">")
-          } else if (inText) {
-            textBuilder.append("</" + streamParser.getLocalName() + ">")
-          }
-        }
-        case XMLStreamConstants.CHARACTERS => {
-          if (inTitle) {
-            titleBuilder.append(streamParser.getText())
-          } else if (inText) {
-            textBuilder.append(streamParser.getText())
-          }
-        }
-        case _ =>
-      }
-    }
-    new Page(titleBuilder.toString(), textBuilder.toString())
   }
 
   def isOnlyLetters(str: String): Boolean = {
@@ -198,9 +170,9 @@ object ParseWikipedia {
 
   def loadStopWords(path: String) = scala.io.Source.fromFile(path).getLines.toSet
 
-  def saveDocFreqs(path: String, docFreqs: HashMap[String, Int]) {
+  def saveDocFreqs(path: String, docFreqs: Array[(Int, String)]) {
     val ps = new PrintStream(new FileOutputStream(path))
-    for ((doc, freq) <- docFreqs) {
+    for ((freq, doc) <- docFreqs) {
       ps.println(s"$doc\t$freq")
     }
     ps.close()
