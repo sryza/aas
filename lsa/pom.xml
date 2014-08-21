@@ -22,7 +22,7 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>lsa</artifactId>
+  <artifactId>wikilsa</artifactId>
   <packaging>jar</packaging>
   <name>Wikipedia Latent Semantic Analysis</name>
   <version>0.0.1-SNAPSHOT</version>

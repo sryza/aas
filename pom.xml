@@ -75,7 +75,7 @@
   </pluginRepositories>
 
   <modules>
-    <module>lsa</module>
+    <module>wikilsa</module>
   </modules>
 
   <properties>
