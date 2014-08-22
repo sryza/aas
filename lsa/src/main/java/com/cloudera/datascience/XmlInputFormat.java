@@ -37,6 +37,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * NOTE: This is copied over from Mahout. As it's entirely self contained, copying means that we can
+ * avoid all of Mahout's dependency baggage.
+ *
  * Reads records that are delimited by a specific begin/end tag.
  */
 public class XmlInputFormat extends TextInputFormat {
