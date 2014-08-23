@@ -72,23 +72,22 @@ object ParseWikipedia {
 
     // maps terms to their indices in the vector
     val termIndices = new HashMap[String, Int]()
-    var index = 0
-    for (term <- idfs.keySet()) {
+    for ((term, index) <- idfs.keySet().zipWithIndex) {
       termIndices += (term -> index)
-      index += 1
     }
 
     val bIdfs = sc.broadcast(idfs).value
+    val bTermIndices = sc.broadcast(termIndices).value
 
     val vecs = docTermFreqs.map(docTermFreqs => {
       val docTotalTerms = docTermFreqs.values().sum
       // TODO: this could be more performant?
       val termScores = docTermFreqs.filter{
-        case (term, freq) => termIndices.containsKey(term)
+        case (term, freq) => bTermIndices.containsKey(term)
       }.map{
-        case (term, freq) => (termIndices(term), bIdfs(term) * docTermFreqs(term) / docTotalTerms)
+        case (term, freq) => (bTermIndices(term), bIdfs(term) * docTermFreqs(term) / docTotalTerms)
       }.toSeq
-      Vectors.sparse(index, termScores)
+      Vectors.sparse(bTermIndices.size, termScores)
     })
     (vecs, termIndices.map(_.swap))
   }
@@ -96,7 +95,7 @@ object ParseWikipedia {
   def documentFrequencies(docTermFreqs: RDD[HashMap[String, Int]]): HashMap[String, Int] = {
     docTermFreqs.aggregate(new HashMap[String, Int]())(
       (dfs, tfs) => {
-        tfs.keySet().foreach{ term =>
+        tfs.keySet.foreach{ term =>
           addTermCount(dfs, term, 1)
         }
         dfs
@@ -112,24 +111,23 @@ object ParseWikipedia {
   */
 
   def documentFrequencies(docTermFreqs: RDD[HashMap[String, Int]], numTerms: Int)
-      : Array[(Int, String)] = {
-    val docFreqs = docTermFreqs.flatMap(_.keySet()).map((_, 1)).reduceByKey(_ + _, 15)
-    val freqTerms = docFreqs.map(termFreq => (termFreq._2, termFreq._1))
-    val ordering = new Ordering[(Int, String)] {
-      def compare(x: (Int, String), y: (Int, String)): Int = x._1 - y._1
+      : Array[(String, Int)] = {
+    val docFreqs = docTermFreqs.flatMap(_.keySet).map((_, 1)).reduceByKey(_ + _, 15)
+    val ordering = new Ordering[(String, Int)] {
+      def compare(x: (String, Int), y: (String, Int)): Int = x._2 - y._2
     }
-    freqTerms.top(numTerms)(ordering)
+    docFreqs.top(numTerms)(ordering)
   }
 
   def trimLeastFrequent(freqs: Map[String, Int], numToKeep: Int): Map[String, Int] = {
     freqs.toArray.sortBy(_._2).take(math.min(numToKeep, freqs.size)).toMap
   }
 
-  def inverseDocumentFrequencies(docFreqs: Array[(Int, String)], numDocs: Int):
+  def inverseDocumentFrequencies(docFreqs: Array[(String, Int)], numDocs: Int):
       HashMap[String, Double] = {
     val idfs = new HashMap[String, Double]()
-    for ((count, term) <- docFreqs) {
-      idfs.put(term, math.log10(numDocs / count))
+    for ((term, count) <- docFreqs) {
+      idfs.put(term, math.log10(numDocs.toDouble / count))
     }
     idfs
   }
@@ -186,9 +184,9 @@ object ParseWikipedia {
 
   def loadStopWords(path: String) = scala.io.Source.fromFile(path).getLines.toSet
 
-  def saveDocFreqs(path: String, docFreqs: Array[(Int, String)]) {
+  def saveDocFreqs(path: String, docFreqs: Array[(String, Int)]) {
     val ps = new PrintStream(new FileOutputStream(path))
-    for ((freq, doc) <- docFreqs) {
+    for ((doc, freq) <- docFreqs) {
       ps.println(s"$doc\t$freq")
     }
     ps.close()

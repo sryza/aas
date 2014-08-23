@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package come.cloudera.datascience
+package com.cloudera.datascience
 
 import com.cloudera.datascience.ParseWikipedia._
 import org.apache.spark.mllib.linalg.distributed.RowMatrix
@@ -42,9 +42,10 @@ object RunLSA {
     val svd = mat.computeSVD(k)
 
     println("Singular values: " + svd.s)
-    val topTermsTopConcepts = topTermsInTopConcepts(svd, 20, 20, termIds)
+    val topTermsTopConcepts = topTermsInTopConcepts(svd, 100, 15, termIds)
     for (concept <- topTermsTopConcepts) {
       println("Concept: " + concept.mkString(","))
+      println()
     }
   }
 
@@ -78,7 +79,7 @@ object RunLSA {
       val sorted = termWeights.sortBy(_._1)
       topTerms += sorted.takeRight(numTerms).map{case (score, id) => (termIds(id), score)}
     }
-    topTerms
+    topTerms.map(_.reverse)
   }
 
 //  def topDocsInTopConcepts
