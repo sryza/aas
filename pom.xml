@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Copyright (c) 2014, Cloudera, Inc. All Rights Reserved.
+  Copyright 2014 Sandy Ryza, Josh Wills, Sean Owen, Uri Laserson
 
   Cloudera, Inc. licenses this file to you under the Apache License,
   Version 2.0 (the "License"). You may not use this file except in
@@ -118,13 +118,13 @@
   </pluginRepositories>
 
   <modules>
+    <module>kmeans</module>
     <module>lsa</module>
   </modules>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <corenlp.version>3.4</corenlp.version>
     <java.version>1.7</java.version>
     <scala.minor.version>2.10</scala.minor.version>
     <scala.complete.version>${scala.minor.version}.4</scala.complete.version>
