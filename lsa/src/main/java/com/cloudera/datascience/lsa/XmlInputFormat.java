@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.cloudera.datascience;
+package com.cloudera.datascience.lsa;
 
 import java.io.IOException;
 

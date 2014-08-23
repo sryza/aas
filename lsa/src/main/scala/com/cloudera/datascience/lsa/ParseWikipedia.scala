@@ -1,12 +1,11 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+/*
+ * Copyright 2014 Sandy Ryza, Josh Wills, Sean Owen, Uri Laserson
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,29 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.cloudera.datascience
+
+package com.cloudera.datascience.lsa
 
 import java.io.{FileOutputStream, PrintStream}
-import java.util.{Properties, HashMap}
+import java.util.{HashMap, Properties}
 
-import org.apache.spark.rdd.RDD
+import edu.stanford.nlp.ling.CoreAnnotations.{LemmaAnnotation, SentencesAnnotation, TokensAnnotation}
+import edu.stanford.nlp.pipeline.{Annotation, StanfordCoreNLP}
+import edu.umd.cloud9.collection.wikipedia.WikipediaPage
+import edu.umd.cloud9.collection.wikipedia.language.EnglishWikipediaPage
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
-import org.apache.spark.mllib.linalg.{Vectors, Vector}
-
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.io.LongWritable
-import org.apache.hadoop.io.Text
+import org.apache.spark.mllib.linalg.{Vector, Vectors}
+import org.apache.spark.rdd.RDD
 
 import scala.collection.JavaConversions._
 import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
-
-import edu.stanford.nlp.pipeline.{Annotation, StanfordCoreNLP}
-import edu.stanford.nlp.ling.CoreAnnotations.{TokensAnnotation, SentencesAnnotation, LemmaAnnotation}
-
-import edu.umd.cloud9.collection.wikipedia.language.EnglishWikipediaPage
-import edu.umd.cloud9.collection.wikipedia.WikipediaPage
 
 case class Page(title: String, contents: String)
 

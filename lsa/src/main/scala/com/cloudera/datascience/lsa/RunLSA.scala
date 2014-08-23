@@ -1,12 +1,11 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+/*
+ * Copyright 2014 Sandy Ryza, Josh Wills, Sean Owen, Uri Laserson
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,13 +14,13 @@
  * limitations under the License.
  */
 
-package com.cloudera.datascience
+package com.cloudera.datascience.lsa
 
-import com.cloudera.datascience.ParseWikipedia._
 import org.apache.spark.mllib.linalg.distributed.RowMatrix
+import org.apache.spark.mllib.linalg.{Matrix, SingularValueDecomposition, Vector}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.{SparkContext, SparkConf}
-import org.apache.spark.mllib.linalg.{Vector, Matrix, SingularValueDecomposition}
+import org.apache.spark.{SparkConf, SparkContext}
+
 import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
 

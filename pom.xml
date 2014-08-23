@@ -44,6 +44,49 @@
     </dependencies>
   </dependencyManagement>
 
+  <url>http://github.mtv.cloudera.com/sandyryza/spark-book</url>
+  <inceptionYear>2014</inceptionYear>
+  <licenses>
+    <license>
+      <name>The Apache Software License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <id>sryza</id>
+      <name>Sandy Ryza</name>
+      <organization>Cloudera</organization>
+    </developer>
+    <developer>
+      <id>jwills</id>
+      <name>Josh Wills</name>
+      <organization>Cloudera</organization>
+    </developer>
+    <developer>
+      <id>srowen</id>
+      <name>Sean Owen</name>
+      <organization>Cloudera</organization>
+    </developer>
+    <developer>
+      <id>laserson</id>
+      <name>Uri Laserson</name>
+      <organization>Cloudera</organization>
+    </developer>
+  </developers>
+
+  <issueManagement>
+    <system>GitHub</system>
+    <url>http://github.mtv.cloudera.com/sandyryza/spark-book/issues</url>
+  </issueManagement>
+  <scm>
+    <connection>scm:git:https://github.mtv.cloudera.com/sandyryza/spark-book.git</connection>
+    <url>scm:git:https://github.mtv.cloudera.com/sandyryza/spark-book.git</url>
+    <developerConnection>scm:git:https://github.mtv.cloudera.com/sandyryza/spark-book.git</developerConnection>
+    <tag>HEAD</tag>
+  </scm>
+
   <prerequisites>
     <maven>3.1.1</maven>
   </prerequisites>
@@ -75,7 +118,7 @@
   </pluginRepositories>
 
   <modules>
-    <module>wikilsa</module>
+    <module>lsa</module>
   </modules>
 
   <properties>
