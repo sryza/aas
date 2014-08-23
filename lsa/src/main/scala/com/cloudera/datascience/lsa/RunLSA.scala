@@ -50,21 +50,24 @@ object RunLSA {
 
   def preprocessing(sampleSize: Double, numTerms: Int, sc: SparkContext)
       : (RDD[Vector], Map[Int, String]) = {
-    val pages = readFile("/user/srowen/DataSets/Wikipedia/20131205/", sc)
+    val pages = ParseWikipedia.readFile("/user/srowen/DataSets/Wikipedia/20131205/", sc)
       .sample(false, sampleSize, 11L)
 
-    val plainText = pages.filter(_ != null).map(wikiXmlToPlainText).filter(_.length > 0)
+    val plainText = pages.filter(_ != null).
+      map(ParseWikipedia.wikiXmlToPlainText).
+      filter(_.length > 0)
 
-    val stopWords = sc.broadcast(loadStopWords("src/main/resources/stopwords.txt")).value
+    val stopWords =
+      sc.broadcast(ParseWikipedia.loadStopWords("src/main/resources/stopwords.txt")).value
 
     val lemmatized = plainText.mapPartitions(iter => {
-      val pipeline = createPipeline()
-      iter.map(plainTextToLemmas(_, stopWords, pipeline))
+      val pipeline = ParseWikipedia.createPipeline()
+      iter.map(ParseWikipedia.plainTextToLemmas(_, stopWords, pipeline))
     })
 
     val filtered = lemmatized.filter(_.size > 1)
 
-    termDocumentMatrix(filtered, stopWords, numTerms, sc)
+    ParseWikipedia.termDocumentMatrix(filtered, stopWords, numTerms, sc)
   }
 
   def topTermsInTopConcepts(svd: SingularValueDecomposition[RowMatrix, Matrix], numConcepts: Int,
