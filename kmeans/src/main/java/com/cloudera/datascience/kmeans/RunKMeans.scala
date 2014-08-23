@@ -20,6 +20,7 @@ import org.apache.spark.mllib.clustering._
 import org.apache.spark.mllib.linalg._
 import org.apache.spark.rdd._
 import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.SparkContext._
 
 object RunKMeans {
 
@@ -77,7 +78,7 @@ object RunKMeans {
     val kmeans = new KMeans()
     kmeans.setK(k)
     val model = kmeans.run(data)
-    data.map(datum => distToCentroid(datum, model)).mean
+    data.map(datum => distToCentroid(datum, model)).mean()
   }
 
   def clusteringScore2(data: RDD[Vector], k: Int): Double = {
@@ -86,7 +87,7 @@ object RunKMeans {
     kmeans.setRuns(10)
     kmeans.setEpsilon(1.0e-6)
     val model = kmeans.run(data)
-    data.map(datum => distToCentroid(datum, model)).mean
+    data.map(datum => distToCentroid(datum, model)).mean()
   }
 
   def clusteringTake1(sc: SparkContext, rawData: RDD[String]): Unit = {
