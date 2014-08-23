@@ -55,7 +55,7 @@ object RunLSA {
 
     val plainText = pages.filter(_ != null).map(wikiXmlToPlainText).filter(_.length > 0)
 
-    val stopWords = sc.broadcast(loadStopWords("stopwords.txt")).value
+    val stopWords = sc.broadcast(loadStopWords("src/main/resources/stopwords.txt")).value
 
     val lemmatized = plainText.mapPartitions(iter => {
       val pipeline = createPipeline()
