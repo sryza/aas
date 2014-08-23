@@ -206,12 +206,6 @@
   </dependencies>
 
   <build>
-    <plugins>
-      <plugin>
-        <groupId>org.scala-tools</groupId>
-        <artifactId>maven-scala-plugin</artifactId>
-      </plugin>
-    </plugins>
     <pluginManagement>
       <plugins>
         <plugin>
@@ -251,6 +245,7 @@
           </executions>
         </plugin>
         <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
           <version>3.1</version>
           <configuration>
@@ -296,6 +291,7 @@
           <version>2.17</version>
         </plugin>
         <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-assembly-plugin</artifactId>
           <version>2.4.1</version>
           <configuration>
@@ -305,7 +301,6 @@
           </configuration>
           <executions>
             <execution>
-              <id>make-my-jar-with-dependencies</id>
               <phase>package</phase>
               <goals>
                 <goal>single</goal>
