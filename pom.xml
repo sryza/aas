@@ -179,6 +179,7 @@
   </pluginRepositories>
 
   <modules>
+    <module>recommender</module>
     <module>kmeans</module>
     <module>lsa</module>
   </modules>
