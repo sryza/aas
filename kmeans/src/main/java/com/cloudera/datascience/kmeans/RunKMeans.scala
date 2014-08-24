@@ -27,32 +27,36 @@ object RunKMeans {
   def main(args: Array[String]): Unit = {
     val sc = new SparkContext(new SparkConf().setAppName("K-means"))
     val rawData = sc.textFile("/user/spark/kddcup.data", 120)
-    clusteringTake0(sc, rawData)
-    clusteringTake1(sc, rawData)
+    clusteringTake0(rawData)
+    clusteringTake1(rawData)
+    clusteringTake2(rawData)
+    clusteringTake3(rawData)
+    clusteringTake4(rawData)
+    anomalies(rawData)
   }
 
   // Clustering, Take 0
 
-  def clusteringTake0(sc: SparkContext, rawData: RDD[String]): Unit = {
+  def clusteringTake0(rawData: RDD[String]): Unit = {
 
     rawData.map(_.split(',').last).countByValue.toSeq.sortBy(_._2).reverse.foreach(println)
 
-    val dataAndLabel = rawData.map { line =>
+    val labelsAndData = rawData.map { line =>
       val buffer = line.split(',').toBuffer
       buffer.remove(1, 3)
       val label = buffer.remove(buffer.length - 1)
       val vector = Vectors.dense(buffer.map(_.toDouble).toArray)
-      (vector, label)
+      (label, vector)
     }
 
-    val data = dataAndLabel.map(_._1).cache()
+    val data = labelsAndData.values.cache()
 
     val kmeans = new KMeans()
     val model = kmeans.run(data)
 
     model.clusterCenters.foreach(println)
 
-    val clusterLabelCount = dataAndLabel.map { case (datum, label) =>
+    val clusterLabelCount = labelsAndData.map { case (label, datum) =>
       val cluster = model.predict(datum)
       (cluster, label)
     }.countByValue
@@ -90,7 +94,7 @@ object RunKMeans {
     data.map(datum => distToCentroid(datum, model)).mean()
   }
 
-  def clusteringTake1(sc: SparkContext, rawData: RDD[String]): Unit = {
+  def clusteringTake1(rawData: RDD[String]): Unit = {
 
     val data = rawData.map { line =>
       val buffer = line.split(',').toBuffer
@@ -109,7 +113,7 @@ object RunKMeans {
 
   }
 
-  def visualizationInR(sc: SparkContext, rawData: RDD[String]): Unit = {
+  def visualizationInR(rawData: RDD[String]): Unit = {
 
     val data = rawData.map { line =>
       val buffer = line.split(',').toBuffer
@@ -134,7 +138,9 @@ object RunKMeans {
 
   }
 
-  def buildNormalizedData(sc: SparkContext, data: RDD[Vector]) = {
+  // Clustering, Take 2
+
+  def buildNormalizationFunction(data: RDD[Vector]): (Vector => Vector) = {
     val dataAsArray = data.map(_.toArray)
     val numCols = dataAsArray.take(1)(0).length
     val n = dataAsArray.count()
@@ -150,21 +156,16 @@ object RunKMeans {
     }
     val means = sums.map(_ / n)
 
-    def normalize(datum: Vector) = {
+    (datum: Vector) => {
       val normalizedArray = (datum.toArray, means, stdevs).zipped.map(
         (value, mean, stdev) =>
-          if (stdev <= 0)
-            (value - mean)
-          else
-            (value - mean) / stdev
+          if (stdev <= 0)  (value - mean) else  (value - mean) / stdev
       )
       Vectors.dense(normalizedArray)
     }
-
-    data.map(normalize)
   }
 
-  def clusteringTake2(sc: SparkContext, rawData: RDD[String]): Unit = {
+  def clusteringTake2(rawData: RDD[String]): Unit = {
     val data = rawData.map { line =>
       val buffer = line.split(',').toBuffer
       buffer.remove(1, 3)
@@ -172,7 +173,7 @@ object RunKMeans {
       Vectors.dense(buffer.map(_.toDouble).toArray)
     }
 
-    val normalizedData = buildNormalizedData(sc, data).cache()
+    val normalizedData = data.map(buildNormalizationFunction(data)).cache()
 
     (60 to 120 by 10).par.map(k =>
       (k, clusteringScore2(normalizedData, k))).toList.foreach(println)
@@ -180,13 +181,13 @@ object RunKMeans {
     normalizedData.unpersist(true)
   }
 
-  def clusteringTake3(sc: SparkContext, rawData: RDD[String]): Unit = {
+  // Clustering, Take 3
 
+  def buildCategoricalAndLabelFunction(rawData: RDD[String]): (String => (String,Vector)) = {
     val protocols = rawData.map(_.split(',')(1)).distinct().collect().zipWithIndex.toMap
-    val services =  rawData.map(_.split(',')(2)).distinct().collect().zipWithIndex.toMap
+    val services = rawData.map(_.split(',')(2)).distinct().collect().zipWithIndex.toMap
     val tcpStates = rawData.map(_.split(',')(3)).distinct().collect().zipWithIndex.toMap
-
-    val data = rawData.map { line =>
+    (line: String) => {
       val buffer = line.split(",").toBuffer
       val protocol = buffer.remove(1)
       val service = buffer.remove(1)
@@ -205,15 +206,87 @@ object RunKMeans {
       vector.insertAll(1, newServiceFeatures)
       vector.insertAll(1, newProtocolFeatures)
 
-      Vectors.dense(vector.toArray)
+      (label, Vectors.dense(vector.toArray))
     }
+  }
 
-    val normalizedData = buildNormalizedData(sc, data).cache()
+  def clusteringTake3(rawData: RDD[String]): Unit = {
+    val parseFunction = buildCategoricalAndLabelFunction(rawData)
+    val data = rawData.map(parseFunction).values
+    val normalizedData = data.map(buildNormalizationFunction(data)).cache()
 
-    (80 to 120 by 10).par.map(k =>
+    (80 to 160 by 10).map(k =>
       (k, clusteringScore2(normalizedData, k))).toList.foreach(println)
 
     normalizedData.unpersist(true)
+  }
+
+  // Clustering, Take 4
+
+  def entropy(counts: Iterable[Int]) = {
+    val values = counts.filter(_ > 0)
+    val n: Double = values.sum
+    values.map { v =>
+      val p = v / n
+      -p * math.log(p)
+    }.sum
+  }
+
+  def clusteringScore3(normalizedLabelsAndData: RDD[(String,Vector)], k: Int) = {
+    val kmeans = new KMeans()
+    kmeans.setK(k)
+    kmeans.setRuns(10)
+    kmeans.setEpsilon(1.0e-6)
+    val model = kmeans.run(normalizedLabelsAndData.values)
+    val labelsInCluster = normalizedLabelsAndData.mapValues(model.predict).
+      map(t => (t._2,t._1)).groupByKey().values
+    val labelCounts = labelsInCluster.map(_.groupBy(l => l).map(_._2.size))
+    labelCounts.map(m => m.sum * entropy(m)).sum / normalizedLabelsAndData.count()
+  }
+
+  def clusteringTake4(rawData: RDD[String]): Unit = {
+    val parseFunction = buildCategoricalAndLabelFunction(rawData)
+    val labelsAndData = rawData.map(parseFunction)
+    val normalizedLabelsAndData =
+      labelsAndData.mapValues(buildNormalizationFunction(labelsAndData.values)).cache()
+
+    (80 to 160 by 10).map(k =>
+      (k, clusteringScore3(normalizedLabelsAndData, k))).toList.foreach(println)
+
+    normalizedLabelsAndData.unpersist(true)
+  }
+
+  // Detect anomalies
+
+  def buildAnomalyDetector(data: RDD[Vector],
+                           normalizeFunction: (Vector => Vector)): (Vector => Boolean) = {
+    val normalizedData = data.map(normalizeFunction)
+    normalizedData.cache()
+
+    val kmeans = new KMeans()
+    kmeans.setK(150)
+    kmeans.setRuns(10)
+    kmeans.setEpsilon(1.0e-6)
+    val model = kmeans.run(normalizedData)
+
+    normalizedData.unpersist(true)
+
+    val distances = normalizedData.map(datum => distToCentroid(datum, model))
+    val threshold = distances.top(100).last
+
+    (datum: Vector) => distToCentroid(normalizeFunction(datum), model) > threshold
+  }
+
+  def anomalies(rawData: RDD[String]) = {
+    val parseFunction = buildCategoricalAndLabelFunction(rawData)
+    val originalAndData = rawData.map(line => (line, parseFunction(line)._2))
+    val data = originalAndData.values
+    val normalizeFunction = buildNormalizationFunction(data)
+    val anomalyDetector = buildAnomalyDetector(data, normalizeFunction)
+    val anomalies = originalAndData.filter(
+      originalAndDatum => anomalyDetector(originalAndDatum._2)
+    ).keys
+    anomalies.take(10).foreach(println)
   }
 
 }
