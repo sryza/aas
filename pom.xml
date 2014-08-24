@@ -162,6 +162,9 @@
     <repository>
       <id>scala-tools.org</id>
       <url>http://scala-tools.org/repo-releases</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
     </repository>
   </repositories>
 
@@ -169,6 +172,9 @@
     <pluginRepository>
       <id>scala-tools.org</id>
       <url>http://scala-tools.org/repo-releases</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
     </pluginRepository>
   </pluginRepositories>
 
@@ -356,6 +362,9 @@
         <repository>
           <id>cloudera</id>
           <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
+          <snapshots>
+            <enabled>false</enabled>
+          </snapshots>
         </repository>
       </repositories>
       <properties>
