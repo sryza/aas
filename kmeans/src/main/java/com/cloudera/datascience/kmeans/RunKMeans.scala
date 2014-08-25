@@ -65,7 +65,7 @@ object RunKMeans {
       println(f"$cluster%1s$label%18s$count%8s")
     }
 
-    data.unpersist(true)
+    data.unpersist()
   }
 
   // Clustering, Take 1
@@ -109,7 +109,7 @@ object RunKMeans {
     (30 to 100 by 10).par.map(k => (k, clusteringScore2(data, k))).
       toList.foreach(println)
 
-    data.unpersist(true)
+    data.unpersist()
 
   }
 
@@ -134,7 +134,7 @@ object RunKMeans {
 
     sample.saveAsTextFile("/user/spark/sample")
 
-    data.unpersist(true)
+    data.unpersist()
 
   }
 
@@ -178,7 +178,7 @@ object RunKMeans {
     (60 to 120 by 10).par.map(k =>
       (k, clusteringScore2(normalizedData, k))).toList.foreach(println)
 
-    normalizedData.unpersist(true)
+    normalizedData.unpersist()
   }
 
   // Clustering, Take 3
@@ -218,7 +218,7 @@ object RunKMeans {
     (80 to 160 by 10).map(k =>
       (k, clusteringScore2(normalizedData, k))).toList.foreach(println)
 
-    normalizedData.unpersist(true)
+    normalizedData.unpersist()
   }
 
   // Clustering, Take 4
@@ -253,7 +253,7 @@ object RunKMeans {
     (80 to 160 by 10).map(k =>
       (k, clusteringScore3(normalizedLabelsAndData, k))).toList.foreach(println)
 
-    normalizedLabelsAndData.unpersist(true)
+    normalizedLabelsAndData.unpersist()
   }
 
   // Detect anomalies
@@ -269,7 +269,7 @@ object RunKMeans {
     kmeans.setEpsilon(1.0e-6)
     val model = kmeans.run(normalizedData)
 
-    normalizedData.unpersist(true)
+    normalizedData.unpersist()
 
     val distances = normalizedData.map(datum => distToCentroid(datum, model))
     val threshold = distances.top(100).last
