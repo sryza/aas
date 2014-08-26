@@ -20,6 +20,7 @@ import org.apache.spark.mllib.recommendation._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.SparkContext._
+//import org.jblas.DoubleMatrix
 
 object RunRecommender {
 
@@ -30,19 +31,11 @@ object RunRecommender {
     val rawArtistAlias = sc.textFile("/user/spark/artist_alias.txt")
 
     preparation(rawUserArtistData, rawArtistData, rawArtistAlias)
-    model(sc, rawUserArtistData, rawArtistAlias)
+    model(sc, rawUserArtistData, rawArtistData, rawArtistAlias)
   }
 
-  def preparation(rawUserArtistData: RDD[String],
-                  rawArtistData: RDD[String],
-                  rawArtistAlias: RDD[String]) = {
-
-    val userIDStats = rawUserArtistData.map(_.split(' ')(0).toDouble).stats()
-    val itemIDStats = rawUserArtistData.map(_.split(' ')(1).toDouble).stats()
-    println(userIDStats)
-    println(itemIDStats)
-
-    val artistByID = rawArtistData.flatMap { line =>
+  def buildArtistByID(rawArtistData: RDD[String]) =
+    rawArtistData.flatMap { line =>
       val (id, name) = line.span(_ != '\t')
       if (name.isEmpty) {
         None
@@ -55,7 +48,8 @@ object RunRecommender {
       }
     }
 
-    val artistAlias = rawArtistAlias.flatMap { line =>
+  def buildArtistAlias(rawArtistAlias: RDD[String]): collection.Map[Int,Int] =
+    rawArtistAlias.flatMap { line =>
       val tokens = line.split('\t')
       if (tokens(0).isEmpty) {
         None
@@ -63,23 +57,28 @@ object RunRecommender {
         Some((tokens(0).toInt, tokens(1).toInt))
       }
     }.collectAsMap()
+
+  def preparation(rawUserArtistData: RDD[String],
+                  rawArtistData: RDD[String],
+                  rawArtistAlias: RDD[String]) = {
+    val userIDStats = rawUserArtistData.map(_.split(' ')(0).toDouble).stats()
+    val itemIDStats = rawUserArtistData.map(_.split(' ')(1).toDouble).stats()
+    println(userIDStats)
+    println(itemIDStats)
+
+    val artistByID = buildArtistByID(rawArtistData)
+    val artistAlias = buildArtistAlias(rawArtistAlias)
 
     val (badID, goodID) = artistAlias.head
     println(artistByID.lookup(badID) + " -> " + artistByID.lookup(goodID))
   }
 
-  def model(sc: SparkContext, rawUserArtistData: RDD[String], rawArtistAlias: RDD[String]): Unit = {
+  def model(sc: SparkContext,
+            rawUserArtistData: RDD[String],
+            rawArtistData: RDD[String],
+            rawArtistAlias: RDD[String]): Unit = {
 
-    val artistAlias = rawArtistAlias.flatMap { line =>
-      val tokens = line.split('\t')
-      if (tokens(0).isEmpty) {
-        None
-      } else {
-        Some((tokens(0).toInt, tokens(1).toInt))
-      }
-    }.collectAsMap()
-
-    val artistAliasBroadcast = sc.broadcast(artistAlias)
+    val artistAliasBroadcast = sc.broadcast(buildArtistAlias(rawArtistAlias))
 
     val implicitFeedback = rawUserArtistData.map { line =>
       val tokens = line.split(' ')
@@ -95,6 +94,38 @@ object RunRecommender {
     implicitFeedback.unpersist()
 
     model.userFeatures.mapValues(java.util.Arrays.toString).take(3).foreach(println)
+
+    val userID = 2093760
+    val recommendations = model.recommendProducts(userID, 5)
+    //val recommendations = recommendProducts(userID, 10, model)
+    val recommendedProductIDs = recommendations.map(_.product).toSet
+
+    val existingProductIDs = rawUserArtistData.map(_.split(' ')).
+      filter(_(0).toInt == userID).map(_(1).toInt).collect().toSet
+
+    val artistByID = buildArtistByID(rawArtistData)
+
+    artistByID.filter(idName => existingProductIDs.contains(idName._1)).
+      values.collect().sorted.foreach(println)
+    artistByID.filter(idName => recommendedProductIDs.contains(idName._1)).
+      values.collect().sorted.foreach(println)
+
   }
+
+  /*
+  def recommend(recommendToFeatures: Array[Double],
+                recommendableFeatures: RDD[(Int, Array[Double])],
+                num: Int): Array[(Int, Double)] = {
+    val recommendToVector = new DoubleMatrix(recommendToFeatures)
+    val scored = recommendableFeatures.map { case (id,features) =>
+      (id, recommendToVector.dot(new DoubleMatrix(features)))
+    }
+    scored.top(num)(Ordering.by(_._2))
+  }
+
+  def recommendProducts(user: Int, num: Int, model: MatrixFactorizationModel): Array[Rating] =
+    recommend(model.userFeatures.lookup(user).head, model.productFeatures, num).
+      map(t => Rating(user, t._1, t._2))
+   */
 
 }
