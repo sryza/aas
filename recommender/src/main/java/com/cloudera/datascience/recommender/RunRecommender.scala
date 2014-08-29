@@ -132,10 +132,10 @@ object RunRecommender {
    */
 
   def areaUnderCurve(sc: SparkContext,
-                     model: MatrixFactorizationModel,
-                     positiveData: RDD[Rating]) = {
+                     positiveData: RDD[Rating],
+                     predictFunction: (RDD[(Int,Int)] => RDD[Rating])): Double = {
     val positiveUserProducts = positiveData.map(r => (r.user, r.product))
-    val positivePredictions = model.predict(positiveUserProducts).groupBy(_.user)
+    val positivePredictions = predictFunction(positiveUserProducts).groupBy(_.user)
 
     val allItemIDsBC = sc.broadcast(positiveUserProducts.values.distinct().collect())
 
@@ -147,8 +147,9 @@ object RunRecommender {
           val posItemIDSet = posItemIDs.toSet
           val negative = new ArrayBuffer[Int]()
           var i = 0
-          // Keep about 100 negative examples per user
-          while (i < allItemIDs.size && negative.size < 100) {
+          // Keep about as many negative examples per user as positive.
+          // Duplicates are OK
+          while (i < allItemIDs.size && negative.size < posItemIDSet.size) {
             val itemID = allItemIDs(random.nextInt(allItemIDs.size))
             if (!posItemIDSet.contains(itemID)) {
               negative += itemID
@@ -160,10 +161,10 @@ object RunRecommender {
       }
     }.flatMap(t => t)
 
-    val negativePredictions = model.predict(negativeUserProducts).groupBy(_.user)
+    val negativePredictions = predictFunction(negativeUserProducts).groupBy(_.user)
 
-    val correctAndTotal = positivePredictions.join(negativePredictions).map {
-      case (userID, (positiveRatings, negativeRatings)) =>
+    val correctAndTotal = positivePredictions.join(negativePredictions).values.map {
+      case (positiveRatings, negativeRatings) =>
         var correct = 0L
         for (positive <- positiveRatings;
              negative <- negativeRatings) {
@@ -177,6 +178,14 @@ object RunRecommender {
     correctAndTotal.keys.sum / correctAndTotal.values.sum
   }
 
+  def predictMostListened(sc: SparkContext, train: RDD[Rating])(allData: RDD[(Int,Int)]) = {
+    val listenCountBC =
+      sc.broadcast(train.map(r => (r.product, r.rating)).reduceByKey(_ + _).collectAsMap())
+    allData.map { case (user, product) =>
+      Rating(user, product, listenCountBC.value.getOrElse(product, 0.0))
+    }
+  }
+
   def evaluate(sc: SparkContext,
                rawUserArtistData: RDD[String],
                rawArtistAlias: RDD[String]): Unit = {
@@ -186,13 +195,25 @@ object RunRecommender {
     val trainAndCV = rawUserArtistData.randomSplit(Array(0.8, 0.2))
 
     val trainData = buildRatings(trainAndCV(0), artistAliasBroadcast).cache()
-    val model = ALS.trainImplicit(trainData, 10, 5, 0.01, 1.0)
+    val cvData = buildRatings(trainAndCV(1), artistAliasBroadcast).cache()
+
+    val mostListenedAUC = areaUnderCurve(sc, cvData, predictMostListened(sc, trainData))
+    println(mostListenedAUC)
+
+    val evaluations =
+      for (rank   <- Array(10,  40);
+           lambda <- Array(1.0, 0.0001);
+           alpha  <- Array(1.0, 10.0))
+        yield {
+          val model = ALS.trainImplicit(trainData, rank, 10, lambda, alpha)
+          val auc = areaUnderCurve(sc, cvData, model.predict)
+          ((rank, lambda, alpha), auc)
+        }
+
+    evaluations.sortBy(_._2).reverse.foreach(println)
+
     trainData.unpersist()
-
-    val cvData = buildRatings(trainAndCV(1), artistAliasBroadcast)
-
-    val auc = areaUnderCurve(sc, model, cvData)
-    printf(f"$auc")
+    cvData.unpersist()
   }
 
 }
