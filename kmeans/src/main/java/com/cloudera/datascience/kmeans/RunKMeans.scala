@@ -64,7 +64,8 @@ object RunKMeans {
     math.sqrt(a.toArray.zip(b.toArray).map(p => p._1 - p._2).map(d => d * d).sum)
 
   def distToCentroid(datum: Vector, model: KMeansModel) = {
-    val centroid = model.clusterCenters(model.predict(datum))
+    val cluster = model.predict(datum)
+    val centroid = model.clusterCenters(cluster)
     distance(centroid, datum)
   }
 

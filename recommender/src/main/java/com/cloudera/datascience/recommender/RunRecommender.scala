@@ -30,6 +30,7 @@ object RunRecommender {
     preparation(rawUserArtistData, rawArtistData, rawArtistAlias)
     model(sc, rawUserArtistData, rawArtistData, rawArtistAlias)
     evaluate(sc, rawUserArtistData, rawArtistAlias)
+    recommend(sc, rawUserArtistData, rawArtistData, rawArtistAlias)
   }
 
   def buildArtistByID(rawArtistData: RDD[String]) =
@@ -72,13 +73,13 @@ object RunRecommender {
   }
 
   def buildRatings(rawUserArtistData: RDD[String],
-                   artistAliasBroadcast:Broadcast[Map[Int,Int]]) = {
+                   artistAliasBC: Broadcast[Map[Int,Int]]) = {
     rawUserArtistData.map { line =>
       val tokens = line.split(' ')
       val userID = tokens(0).toInt
       val originalArtistID = tokens(1).toInt
       val count = tokens(2).toInt
-      val artistID = artistAliasBroadcast.value.getOrElse(originalArtistID, originalArtistID)
+      val artistID = artistAliasBC.value.getOrElse(originalArtistID, originalArtistID)
       Rating(userID, artistID, count)
     }
   }
@@ -88,9 +89,9 @@ object RunRecommender {
             rawArtistData: RDD[String],
             rawArtistAlias: RDD[String]): Unit = {
 
-    val artistAliasBroadcast = sc.broadcast(buildArtistAlias(rawArtistAlias))
+    val artistAliasBC = sc.broadcast(buildArtistAlias(rawArtistAlias))
 
-    val trainData = buildRatings(rawUserArtistData, artistAliasBroadcast).cache()
+    val trainData = buildRatings(rawUserArtistData, artistAliasBC).cache()
 
     val model = ALS.trainImplicit(trainData, 10, 5, 0.01, 1.0)
 
@@ -115,6 +116,9 @@ object RunRecommender {
 
   }
 
+  // These will not be needed once we are testing on an environment using Spark 1.1.0,
+  // but in the meantime these can be used as a stand-in utility recommend method:
+
   /*
   def recommend(recommendToFeatures: Array[Double],
                 recommendableFeatures: RDD[(Int, Array[Double])],
@@ -131,16 +135,20 @@ object RunRecommender {
       map(t => Rating(user, t._1, t._2))
    */
 
-  def areaUnderCurve(sc: SparkContext,
-                     positiveData: RDD[Rating],
-                     predictFunction: (RDD[(Int,Int)] => RDD[Rating])): Double = {
+  def areaUnderCurve(positiveData: RDD[Rating],
+                     allItemIDsBC: Broadcast[Array[Int]],
+                     predictFunction: (RDD[(Int,Int)] => RDD[Rating])) = {
+    // Take held-out data as the "positive", and map to tuples
     val positiveUserProducts = positiveData.map(r => (r.user, r.product))
+    // Make predictions for each of them, including a numeric score, and gather by user
     val positivePredictions = predictFunction(positiveUserProducts).groupBy(_.user)
 
-    val allItemIDsBC = sc.broadcast(positiveUserProducts.values.distinct().collect())
-
+    // Create a set of "negative" products for each user. These are randomly chosen
+    // from among all of the other items, excluding those that are "positive" for the user.
     val negativeUserProducts = positiveUserProducts.groupByKey().mapPartitions {
+      // mapPartitions operates on many (user,positive-items) pairs at once
       userIDAndPosItemIDs => {
+        // Init an RNG and the item IDs set once for partition
         val random = new Random()
         val allItemIDs = allItemIDsBC.value
         userIDAndPosItemIDs.map { case (userID, posItemIDs) =>
@@ -156,22 +164,29 @@ object RunRecommender {
             }
             i += 1
           }
+          // Result is a collection of (user,negative-item) tuples
           negative.map(itemID => (userID, itemID))
         }
       }
     }.flatMap(t => t)
+    // flatMap breaks the collections above down into one big set of tuples
 
+    // Make predictions on the rest:
     val negativePredictions = predictFunction(negativeUserProducts).groupBy(_.user)
 
+    // Join positive and negative by user
     val correctAndTotal = positivePredictions.join(negativePredictions).values.map {
       case (positiveRatings, negativeRatings) =>
         var correct = 0L
+        // For each pairing,
         for (positive <- positiveRatings;
              negative <- negativeRatings) {
+          // Count the correctly-ranked pairs
           if (positive.rating > negative.rating) {
             correct += 1
           }
         }
+        // Record correct and number possible
         (correct, positiveRatings.size * negativeRatings.size)
     }
 
@@ -189,31 +204,61 @@ object RunRecommender {
   def evaluate(sc: SparkContext,
                rawUserArtistData: RDD[String],
                rawArtistAlias: RDD[String]): Unit = {
+    val artistAliasBC = sc.broadcast(buildArtistAlias(rawArtistAlias))
 
-    val artistAliasBroadcast = sc.broadcast(buildArtistAlias(rawArtistAlias))
+    val allData = buildRatings(rawUserArtistData, artistAliasBC)
+    val trainAndCV = allData.randomSplit(Array(0.9, 0.1))
 
-    val trainAndCV = rawUserArtistData.randomSplit(Array(0.8, 0.2))
+    val trainData = trainAndCV(0).cache()
+    val cvData = trainAndCV(1).cache()
+    val allItemIDs = allData.map(_.product).distinct().collect()
+    val allItemIDsBC = sc.broadcast(allItemIDs)
 
-    val trainData = buildRatings(trainAndCV(0), artistAliasBroadcast).cache()
-    val cvData = buildRatings(trainAndCV(1), artistAliasBroadcast).cache()
-
-    val mostListenedAUC = areaUnderCurve(sc, cvData, predictMostListened(sc, trainData))
+    val mostListenedAUC = areaUnderCurve(cvData, allItemIDsBC, predictMostListened(sc, trainData))
     println(mostListenedAUC)
 
     val evaluations =
-      for (rank   <- Array(10,  40);
+      for (rank   <- Array(10,  50);
            lambda <- Array(1.0, 0.0001);
-           alpha  <- Array(1.0, 10.0))
-        yield {
-          val model = ALS.trainImplicit(trainData, rank, 10, lambda, alpha)
-          val auc = areaUnderCurve(sc, cvData, model.predict)
-          ((rank, lambda, alpha), auc)
-        }
+           alpha  <- Array(1.0, 40.0))
+      yield {
+        val model = ALS.trainImplicit(trainData, rank, 10, lambda, alpha)
+        val auc = areaUnderCurve(cvData, allItemIDsBC, model.predict)
+        ((rank, lambda, alpha), auc)
+      }
 
     evaluations.sortBy(_._2).reverse.foreach(println)
 
     trainData.unpersist()
     cvData.unpersist()
+  }
+
+  def recommend(sc: SparkContext,
+                rawUserArtistData: RDD[String],
+                rawArtistData: RDD[String],
+                rawArtistAlias: RDD[String]): Unit = {
+
+    val artistAliasBC = sc.broadcast(buildArtistAlias(rawArtistAlias))
+    val allData = buildRatings(rawUserArtistData, artistAliasBC).cache()
+    val model = ALS.trainImplicit(allData, 50, 10, 1.0, 40.0)
+    allData.unpersist()
+
+    val userID = 2093760
+    val recommendations = model.recommendProducts(userID, 5)
+    //val recommendations = recommendProducts(userID, 10, model)
+    val recommendedProductIDs = recommendations.map(_.product).toSet
+
+    val artistByID = buildArtistByID(rawArtistData)
+
+    artistByID.filter(idName =>
+      recommendedProductIDs.contains(idName._1)
+    ).values.collect().sorted.foreach(println)
+
+    val someUsers = allData.map(_.user).distinct().take(100)
+    val someRecommendations = someUsers.map(userID => model.recommendProducts(userID, 5))
+    someRecommendations.map(
+      recs => recs(0).user + " -> " + recs.map(_.product).mkString(",")
+    ).foreach(println)
   }
 
 }
