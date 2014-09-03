@@ -101,7 +101,7 @@ object RunRecommender {
 
     val userID = 2093760
     val recommendations = model.recommendProducts(userID, 5)
-    //val recommendations = recommendProducts(userID, 10, model)
+    recommendations.foreach(println)
     val recommendedProductIDs = recommendations.map(_.product).toSet
 
     val existingProductIDs = rawUserArtistData.map(_.split(' ')).
