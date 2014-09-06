@@ -29,16 +29,16 @@ case class Page(title: String, contents: String)
 object ParseWikipedia {
 
   private def addTermCount(map: HashMap[String, Int], term: String, count: Int) {
-    map.put(term, (map.getOrElse(term, 0) + count))
+    map += term -> (map.getOrElse(term, 0) + count)
   }
 
   /**
    * Returns a term-document matrix where each element is the TF-IDF of the row's document and
    * the column's term.
    */
-  def termDocumentMatrix(docs: RDD[Seq[String]], stopWords: Set[String], numTerms: Int,
-      sc: SparkContext): (RDD[Vector], Map[Int, String]) = {
-    val docTermFreqs = docs.map(terms => {
+  def termDocumentMatrix(docs: RDD[(String, Seq[String])], stopWords: Set[String], numTerms: Int,
+      sc: SparkContext): (RDD[Vector], Map[Int, String], Map[Long, String], Map[String, Double]) = {
+    val docTermFreqs = docs.mapValues(terms => {
       val termFreqsInDoc = terms.foldLeft(new HashMap[String, Int]()) {
         (map, term) => {
           addTermCount(map, term, 1)
@@ -47,8 +47,11 @@ object ParseWikipedia {
       }
       termFreqsInDoc
     })
+
     docTermFreqs.cache()
-    val docFreqs = documentFrequencies(docTermFreqs, numTerms)
+    val docIds = docTermFreqs.map(_._1).zipWithUniqueId.map(_.swap).collectAsMap()
+
+    val docFreqs = documentFrequencies(docTermFreqs.map(_._2), numTerms)
     println("Number of terms: " + docFreqs.size)
     saveDocFreqs("docfreqs.tsv", docFreqs)
 
@@ -65,7 +68,7 @@ object ParseWikipedia {
     val bIdfs = sc.broadcast(idfs).value
     val bTermIndices = sc.broadcast(termIndices).value
 
-    val vecs = docTermFreqs.map(docTermFreqs => {
+    val vecs = docTermFreqs.map(_._2).map(docTermFreqs => {
       val docTotalTerms = docTermFreqs.values().sum
       // TODO: this could be more performant?
       val termScores = docTermFreqs.filter{
@@ -75,7 +78,7 @@ object ParseWikipedia {
       }.toSeq
       Vectors.sparse(bTermIndices.size, termScores)
     })
-    (vecs, termIndices.map(_.swap))
+    (vecs, termIndices.map(_.swap), docIds, idfs)
   }
 /*
   def documentFrequencies(docTermFreqs: RDD[HashMap[String, Int]]): HashMap[String, Int] = {
@@ -113,7 +116,7 @@ object ParseWikipedia {
       HashMap[String, Double] = {
     val idfs = new HashMap[String, Double]()
     for ((term, count) <- docFreqs) {
-      idfs.put(term, math.log10(numDocs.toDouble / count))
+      idfs += term -> math.log10(numDocs.toDouble / count)
     }
     idfs
   }
@@ -127,14 +130,17 @@ object ParseWikipedia {
     rawXmls.map(p => p._2.toString)
   }
 
-  def wikiXmlToPlainText(pageXml: String): String = {
+  /**
+   * Returns a (title, content) pair
+   */
+  def wikiXmlToPlainText(pageXml: String): Option[(String, String)] = {
     val page = new EnglishWikipediaPage()
     WikipediaPage.readPage(page, pageXml)
-    if (page.isEmpty || !page.isArticle || page.isDisambiguation || page.isRedirect) ""
-    else page.getContent
+    if (page.isEmpty || !page.isArticle || page.isDisambiguation || page.isRedirect) None
+    else Some((page.getTitle, page.getContent))
   }
 
-  def createPipeline(): StanfordCoreNLP = {
+  def createNLPPipeline(): StanfordCoreNLP = {
     val props = new Properties()
     props.put("annotators", "tokenize, ssplit, pos, lemma")
     new StanfordCoreNLP(props)
