@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package com.cloudera.datascience
+package com.cloudera.datascience.lsa
 
-import com.cloudera.datascience.ParseWikipedia._
+import com.cloudera.datascience.lsa.ParseWikipedia._
 
 import org.apache.spark.mllib.linalg.distributed.RowMatrix
 import org.apache.spark.rdd.RDD
