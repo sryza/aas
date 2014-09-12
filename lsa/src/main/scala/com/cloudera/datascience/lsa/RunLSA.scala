@@ -43,20 +43,15 @@ object RunLSA {
 
     val (termDocMatrix, termIds, docIds, idfs) = preprocessing(sampleSize, numTerms, sc)
     termDocMatrix.cache()
-    //println("termDocMatrix num rows: " + termDocMatrix.count())
     val mat = new RowMatrix(termDocMatrix)
     val svd = mat.computeSVD(k, computeU=true)
 
     println("Singular values: " + svd.s)
-    val topTermsTopConcepts = topTermsInTopConcepts(svd, 20, 15, termIds)
-    for (concept <- topTermsTopConcepts) {
-      println("Concept: " + concept.mkString(","))
-      println()
-    }
-
-    val topDocsTopConcepts = topDocsInTopConcepts(svd, 20, 15, docIds)
-    for (concept <- topDocsTopConcepts) {
-      println("Concept: " + concept.mkString(","))
+    val topTermsTopConcepts = topTermsInTopConcepts(svd, 10, 10, termIds)
+    val topDocsTopConcepts = topDocsInTopConcepts(svd, 10, 10, docIds)
+    for ((terms, docs) <- topTermsTopConcepts.zip(topDocsTopConcepts)) {
+      println("Concept terms: " + terms.map(_._1).mkString(", "))
+      println("Concept docs: " + docs.map(_._1).mkString(", "))
       println()
     }
   }
@@ -86,16 +81,15 @@ object RunLSA {
 
   def topTermsInTopConcepts(svd: SingularValueDecomposition[RowMatrix, Matrix], numConcepts: Int,
       numTerms: Int, termIds: Map[Int, String]): Seq[Seq[(String, Double)]] = {
-    // TODO: can we make it easier to actually look at the insides of matrices
     val v = svd.V
     val topTerms = new ArrayBuffer[Seq[(String, Double)]]()
     for (i <- 0 until numConcepts) {
       val offs = i * v.numRows
       val termWeights = v.toArray.slice(offs, offs + v.numRows).zipWithIndex
-      val sorted = termWeights.sortBy(_._1)
-      topTerms += sorted.takeRight(numTerms).map{case (score, id) => (termIds(id), score)}
+      val sorted = termWeights.sortBy(-_._1)
+      topTerms += sorted.take(numTerms).map{case (score, id) => (termIds(id), score)}
     }
-    topTerms.map(_.reverse)
+    topTerms
   }
 
   def topDocsInTopConcepts(svd: SingularValueDecomposition[RowMatrix, Matrix], numConcepts: Int,
@@ -265,66 +259,4 @@ object RunLSA {
   def printIdWeights[T](idWeights: Seq[(Double, T)], entityIds: Map[T, String]) {
     println(idWeights.map{case (score, id) => (entityIds(id), score)}.mkString(", "))
   }
-
-  /*
-  def docIdToConceptWeights(svd: SingularValueDecomposition[RowMatrix, Matrix], docId: Long)
-      : Array[Double] = {
-    svd.U.rows.zipWithUniqueId.map(_.swap).lookup(docId).head.toArray
-  }
-
-  def conceptWeightsToTopTermWeights(svd: SingularValueDecomposition[RowMatrix, Matrix],
-      conceptWeights: Array[Double], numTerms: Int): Seq[(Double, Int)] = {
-    val bv = new BreezeDenseVector[Double](conceptWeights)
-    val bm = new BreezeDenseMatrix[Double](svd.V.numRows, svd.V.numCols, svd.V.toArray)
-//    val s = new BreezeDenseVector[Double](svd.s.toArray)
-    val allTermWeights = (bm * bv).toArray.zipWithIndex
-    allTermWeights.sortBy(- _._1).take(numTerms)
-  }
-
-  def conceptWeightsToTopDocWeights(svd: SingularValueDecomposition[RowMatrix, Matrix],
-      conceptWeights: Array[Double], numDocs: Int): Seq[(Double, Long)] = {
-    val u = svd.U
-    val allDocWeightsMat = u.multiply(Matrices.dense(conceptWeights.length, 1, conceptWeights))
-    val allDocWeights = allDocWeightsMat.rows.map(_.toArray(0)).zipWithUniqueId
-    allDocWeights.top(numDocs)
-  }
-
-  def printIdWeights[T](idWeights: Seq[(Double, T)], entityIds: Map[T, String]) {
-    println(idWeights.map{case (score, id) => (entityIds(id), score)}.mkString(", "))
-  }
-
-  def printTermsRelevantToTerm(svd: SingularValueDecomposition[RowMatrix, Matrix], term: String,
-      numTerms: Int, idTerms: Map[String, Int], termIds: Map[Int, String]) {
-    val cweights = termIdToConceptWeights(svd, idTerms(term))
-    for (i <- 0 until cweights.length) {
-      cweights(i) /= (svd.s.toArray(i))
-    }
-    val tweights = conceptWeightsToTopTermWeights(svd, cweights, numTerms)
-    printIdWeights(tweights, termIds)
-  }
-
-  def printTermsRelevantToDoc(normalizedVS: Matrix, doc: String,
-      numDocs: Int, idDocs: Map[String, Long], termIds: Map[Int, String], numTerms: Int) {
-    val cweights = docIdToConceptWeights(svd, idDocs(doc))
-    val tweights = conceptWeightsToTopTermWeights(svd, cweights, numTerms)
-    printIdWeights(tweights, termIds)
-  }
-
-  def printDocsRelevantToDoc(svd: SingularValueDecomposition[RowMatrix, Matrix], doc: String,
-      numDocs: Int, idDocs: Map[String, Long], docIds: Map[Long, String]) {
-    val cweights = docIdToConceptWeights(svd, idDocs(doc))
-    val dweights = conceptWeightsToTopDocWeights(svd, cweights, numDocs)
-    printIdWeights(dweights, docIds)
-  }
-
-  def printDocsRelevantToTerm(svd: SingularValueDecomposition[RowMatrix, Matrix], term: String,
-      numDocs: Int, idTerms: Map[String, Int], docIds: Map[Long, String]) {
-    val cweights = termIdToConceptWeights(svd, idTerms(term))
-    for (i <- 0 until cweights.length) {
-      cweights(i) /= (svd.s.toArray(i))
-    }
-    val dweights = conceptWeightsToTopDocWeights(svd, cweights, numDocs)
-    printIdWeights(dweights, docIds)
-  }
-  */
 }
