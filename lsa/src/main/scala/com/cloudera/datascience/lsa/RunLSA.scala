@@ -51,7 +51,7 @@ object RunLSA {
    */
   def preprocessing(sampleSize: Double, numTerms: Int, sc: SparkContext)
       : (RDD[Vector], Map[Int, String], Map[Long, String], Map[String, Double]) = {
-    val pages = readFile("/user/srowen/DataSets/Wikipedia/20131205/", sc)
+    val pages = readFile("/user/ds/Wikipedia/", sc)
       .sample(false, sampleSize, 11L)
 
     val plainText = pages.filter(_ != null).flatMap(wikiXmlToPlainText)

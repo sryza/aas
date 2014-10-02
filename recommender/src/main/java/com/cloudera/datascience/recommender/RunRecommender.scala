@@ -22,7 +22,7 @@ object RunRecommender {
 
   def main(args: Array[String]): Unit = {
     val sc = new SparkContext(new SparkConf().setAppName("Recommender"))
-    val base = "/user/spark/"
+    val base = "/user/ds/"
     val rawUserArtistData = sc.textFile(base + "user_artist_data.txt", 120)
     val rawArtistData = sc.textFile(base + "artist_data.txt")
     val rawArtistAlias = sc.textFile(base + "artist_alias.txt")
