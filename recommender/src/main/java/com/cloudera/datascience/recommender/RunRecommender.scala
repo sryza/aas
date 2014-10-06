@@ -16,14 +16,12 @@ import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
-//import org.jblas.DoubleMatrix
-
 object RunRecommender {
 
   def main(args: Array[String]): Unit = {
     val sc = new SparkContext(new SparkConf().setAppName("Recommender"))
     val base = "/user/ds/"
-    val rawUserArtistData = sc.textFile(base + "user_artist_data.txt", 120)
+    val rawUserArtistData = sc.textFile(base + "user_artist_data.txt")
     val rawArtistData = sc.textFile(base + "artist_data.txt")
     val rawArtistAlias = sc.textFile(base + "artist_alias.txt")
 
@@ -115,25 +113,6 @@ object RunRecommender {
       values.collect().sorted.foreach(println)
 
   }
-
-  // These will not be needed once we are testing on an environment using Spark 1.1.0,
-  // but in the meantime these can be used as a stand-in utility recommend method:
-
-  /*
-  def recommend(recommendToFeatures: Array[Double],
-                recommendableFeatures: RDD[(Int, Array[Double])],
-                num: Int): Array[(Int, Double)] = {
-    val recommendToVector = new DoubleMatrix(recommendToFeatures)
-    val scored = recommendableFeatures.map { case (id,features) =>
-      (id, recommendToVector.dot(new DoubleMatrix(features)))
-    }
-    scored.top(num)(Ordering.by(_._2))
-  }
-
-  def recommendProducts(user: Int, num: Int, model: MatrixFactorizationModel): Array[Rating] =
-    recommend(model.userFeatures.lookup(user).head, model.productFeatures, num).
-      map(t => Rating(user, t._1, t._2))
-   */
 
   def areaUnderCurve(positiveData: RDD[Rating],
                      allItemIDsBC: Broadcast[Array[Int]],
@@ -245,7 +224,6 @@ object RunRecommender {
 
     val userID = 2093760
     val recommendations = model.recommendProducts(userID, 5)
-    //val recommendations = recommendProducts(userID, 10, model)
     val recommendedProductIDs = recommendations.map(_.product).toSet
 
     val artistByID = buildArtistByID(rawArtistData)
