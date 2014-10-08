@@ -200,11 +200,11 @@ object RunRecommender {
       for (rank   <- Array(10,  50);
            lambda <- Array(1.0, 0.0001);
            alpha  <- Array(1.0, 40.0))
-      yield {
-        val model = ALS.trainImplicit(trainData, rank, 10, lambda, alpha)
-        val auc = areaUnderCurve(cvData, allItemIDsBC, model.predict)
-        ((rank, lambda, alpha), auc)
-      }
+        yield {
+          val model = ALS.trainImplicit(trainData, rank, 10, lambda, alpha)
+          val auc = areaUnderCurve(cvData, allItemIDsBC, model.predict)
+          ((rank, lambda, alpha), auc)
+        }
 
     evaluations.sortBy(_._2).reverse.foreach(println)
 
