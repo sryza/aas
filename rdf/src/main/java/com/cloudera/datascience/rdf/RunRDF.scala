@@ -151,7 +151,12 @@ object RunRDF {
   def forest(trainData: RDD[LabeledPoint]): Unit = {
     val forest = RandomForest.trainClassifier(
       trainData, 7, Map(10 -> 4, 11 -> 40), 20, "auto", "entropy", 30, 300)
+
     // TODO
+
+    val input = "2709,125,28,67,23,3224,253,207,61,6094,0,29"
+    val vector = Vectors.dense(input.split(',').map(_.toDouble))
+    println(forest.predict(vector))
   }
 
 }
