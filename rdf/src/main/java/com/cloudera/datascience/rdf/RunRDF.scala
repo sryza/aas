@@ -9,7 +9,7 @@ package com.cloudera.datascience.rdf
 import org.apache.spark.mllib.evaluation.MulticlassMetrics
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.mllib.tree.DecisionTree
+import org.apache.spark.mllib.tree.{RandomForest, DecisionTree}
 import org.apache.spark.mllib.tree.model.DecisionTreeModel
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
@@ -36,6 +36,8 @@ object RunRDF {
     simpleDecisionTree(trainData, cvData)
     randomClassifier(trainData, cvData)
     evaluate(trainData, cvData, testData)
+    undoOneHot(rawData)
+    forest(trainData)
 
     trainData.unpersist()
     cvData.unpersist()
@@ -97,7 +99,8 @@ object RunRDF {
 
     evaluations.sortBy(_._2).reverse.foreach(println)
 
-    val model = DecisionTree.trainClassifier(trainData.union(cvData), 7, Map[Int,Int](), "entropy", 20, 300)
+    val model = DecisionTree.trainClassifier(
+      trainData.union(cvData), 7, Map[Int,Int](), "entropy", 20, 300)
     println(getMetrics(model, testData).precision)
     println(getMetrics(model, trainData.union(cvData)).precision)
   }
@@ -105,8 +108,11 @@ object RunRDF {
   def undoOneHot(rawData: RDD[String]): Unit = {
     val data = rawData.map { line =>
       val values = line.split(',').map(_.toDouble)
+      // Which of 4 "wilderness" features is 1
       val wilderness = values.slice(10, 14).indexOf(1.0).toDouble
+      // Similarly for following 40 "soil" features
       val soil = values.slice(14, 54).indexOf(1.0).toDouble
+      // Add derived features back to first 10
       val featureVector = Vectors.dense(values.slice(0, 10) :+ wilderness :+ soil)
       val label = values.last - 1
       LabeledPoint(label, featureVector)
@@ -119,21 +125,33 @@ object RunRDF {
 
     val evaluations =
       for (impurity <- Array("gini", "entropy");
-           depth    <- Array(12, 18);
+           depth    <- Array(10, 20, 30);
            bins     <- Array(40, 300))
       yield {
+        // Specify value count for categorical features 10, 11
         val model = DecisionTree.trainClassifier(
           trainData, 7, Map(10 -> 4, 11 -> 40), impurity, depth, bins)
         val trainAccuracy = getMetrics(model, trainData).precision
         val cvAccuracy = getMetrics(model, cvData).precision
+        // Return train and CV accuracy
         ((impurity, depth, bins), (trainAccuracy, cvAccuracy))
       }
 
     evaluations.sortBy(_._2._2).reverse.foreach(println)
 
+    val model = DecisionTree.trainClassifier(
+      trainData.union(cvData), 7, Map(10 -> 4, 11 -> 40), "entropy", 30, 300)
+    println(getMetrics(model, testData).precision)
+
     trainData.unpersist()
     cvData.unpersist()
     testData.unpersist()
+  }
+
+  def forest(trainData: RDD[LabeledPoint]): Unit = {
+    val forest = RandomForest.trainClassifier(
+      trainData, 7, Map(10 -> 4, 11 -> 40), 20, "auto", "entropy", 30, 300)
+    // TODO
   }
 
 }
