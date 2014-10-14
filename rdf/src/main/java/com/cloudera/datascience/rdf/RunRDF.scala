@@ -36,8 +36,8 @@ object RunRDF {
     simpleDecisionTree(trainData, cvData)
     randomClassifier(trainData, cvData)
     evaluate(trainData, cvData, testData)
-    undoOneHot(rawData)
-    forest(trainData)
+    evaluateCategorical(rawData)
+    evaluateForest(rawData)
 
     trainData.unpersist()
     cvData.unpersist()
@@ -105,8 +105,8 @@ object RunRDF {
     println(getMetrics(model, trainData.union(cvData)).precision)
   }
 
-  def undoOneHot(rawData: RDD[String]): Unit = {
-    val data = rawData.map { line =>
+  def unencodeOneHot(rawData: RDD[String]): RDD[LabeledPoint] = {
+    rawData.map { line =>
       val values = line.split(',').map(_.toDouble)
       // Which of 4 "wilderness" features is 1
       val wilderness = values.slice(10, 14).indexOf(1.0).toDouble
@@ -117,6 +117,11 @@ object RunRDF {
       val label = values.last - 1
       LabeledPoint(label, featureVector)
     }
+  }
+  
+  def evaluateCategorical(rawData: RDD[String]): Unit = {
+    
+    val data = unencodeOneHot(rawData)
 
     val trainAndCVAndTestData = data.randomSplit(Array(0.8, 0.1, 0.1))
     val trainData = trainAndCVAndTestData(0).cache()
@@ -148,11 +153,21 @@ object RunRDF {
     testData.unpersist()
   }
 
-  def forest(trainData: RDD[LabeledPoint]): Unit = {
+  def evaluateForest(rawData: RDD[String]): Unit = {
+
+    val data = unencodeOneHot(rawData)
+
+    val trainAndCVAndTestData = data.randomSplit(Array(0.9, 0.1))
+    val trainData = trainAndCVAndTestData(0).cache()
+    val cvData = trainAndCVAndTestData(1).cache()
+
     val forest = RandomForest.trainClassifier(
       trainData, 7, Map(10 -> 4, 11 -> 40), 20, "auto", "entropy", 30, 300)
 
-    // TODO
+    val predictionsAndLabels = cvData.map(example =>
+      (forest.predict(example.features), example.label)
+    )
+    println(new MulticlassMetrics(predictionsAndLabels).precision)
 
     val input = "2709,125,28,67,23,3224,253,207,61,6094,0,29"
     val vector = Vectors.dense(input.split(',').map(_.toDouble))
