@@ -16,8 +16,8 @@ import org.apache.spark.mllib.linalg._
 
 import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
-import breeze.linalg.{DenseMatrix => BreezeDenseMatrix, DenseVector => BreezeDenseVector,
-  SparseVector => BreezeSparseVector}
+import breeze.linalg.{DenseMatrix => BDenseMatrix, DenseVector => BDenseVector,
+  SparseVector => BSparseVector}
 import org.apache.spark.mllib.linalg.SingularValueDecomposition
 
 object RunLSA {
@@ -36,9 +36,9 @@ object RunLSA {
     val svd = mat.computeSVD(k, computeU=true)
 
     println("Singular values: " + svd.s)
-    val topTermsTopConcepts = topTermsInTopConcepts(svd, 10, 10, termIds)
-    val topDocsTopConcepts = topDocsInTopConcepts(svd, 10, 10, docIds)
-    for ((terms, docs) <- topTermsTopConcepts.zip(topDocsTopConcepts)) {
+    val topConceptTerms = topTermsInTopConcepts(svd, 10, 10, termIds)
+    val topConceptDocs = topDocsInTopConcepts(svd, 10, 10, docIds)
+    for ((terms, docs) <- topConceptTerms.zip(topConceptDocs)) {
       println("Concept terms: " + terms.map(_._1).mkString(", "))
       println("Concept docs: " + docs.map(_._1).mkString(", "))
       println()
@@ -72,9 +72,10 @@ object RunLSA {
       numTerms: Int, termIds: Map[Int, String]): Seq[Seq[(String, Double)]] = {
     val v = svd.V
     val topTerms = new ArrayBuffer[Seq[(String, Double)]]()
+    val arr = v.toArray
     for (i <- 0 until numConcepts) {
       val offs = i * v.numRows
-      val termWeights = v.toArray.slice(offs, offs + v.numRows).zipWithIndex
+      val termWeights = arr.slice(offs, offs + v.numRows).zipWithIndex
       val sorted = termWeights.sortBy(-_._1)
       topTerms += sorted.take(numTerms).map{case (score, id) => (termIds(id), score)}
     }
@@ -95,7 +96,7 @@ object RunLSA {
   /**
    * Selects a row from a matrix.
    */
-  def row(mat: BreezeDenseMatrix[Double], index: Int): Seq[Double] = {
+  def row(mat: BDenseMatrix[Double], index: Int): Seq[Double] = {
     (0 until mat.cols).map(c => mat(index, c))
   }
 
@@ -118,9 +119,9 @@ object RunLSA {
    * Finds the product of a dense matrix and a diagonal matrix represented by a vector.
    * Breeze doesn't support efficient diagonal representations, so multiply manually.
    */
-  def multiplyByDiagonalMatrix(mat: Matrix, diag: Vector): BreezeDenseMatrix[Double] = {
+  def multiplyByDiagonalMatrix(mat: Matrix, diag: Vector): BDenseMatrix[Double] = {
     val sArr = diag.toArray
-    new BreezeDenseMatrix[Double](mat.numRows, mat.numCols, mat.toArray)
+    new BDenseMatrix[Double](mat.numRows, mat.numCols, mat.toArray)
       .mapPairs{case ((r, c), v) => v * sArr(c)}
   }
 
@@ -139,8 +140,8 @@ object RunLSA {
   /**
    * Returns a matrix where each row is divided by its length.
    */
-  def rowsNormalized(mat: BreezeDenseMatrix[Double]): BreezeDenseMatrix[Double] = {
-    val newMat = new BreezeDenseMatrix[Double](mat.rows, mat.cols)
+  def rowsNormalized(mat: BDenseMatrix[Double]): BDenseMatrix[Double] = {
+    val newMat = new BDenseMatrix[Double](mat.rows, mat.cols)
     for (r <- 0 until mat.rows) {
       val length = math.sqrt((0 until mat.cols).map(c => mat(r, c) * mat(r, c)).sum)
       (0 until mat.cols).map(c => newMat.update(r, c, mat(r, c) / length))
@@ -162,9 +163,9 @@ object RunLSA {
    * Finds terms relevant to a term. Returns the term IDs and scores for the terms with the highest
    * relevance scores to the given term.
    */
-  def topTermsForTerm(normalizedVS: BreezeDenseMatrix[Double], termId: Int): Seq[(Double, Int)] = {
+  def topTermsForTerm(normalizedVS: BDenseMatrix[Double], termId: Int): Seq[(Double, Int)] = {
     // Look up the row in VS corresponding to the given term ID.
-    val termRowVec = new BreezeDenseVector[Double](row(normalizedVS, termId).toArray)
+    val termRowVec = new BDenseVector[Double](row(normalizedVS, termId).toArray)
 
     // Compute scores against every term
     val termScores = (normalizedVS * termRowVec).toArray.zipWithIndex
@@ -209,16 +210,16 @@ object RunLSA {
   }
 
   def termsToQueryVector(terms: Seq[String], idTerms: Map[String, Int], idfs: Map[String, Double])
-    : BreezeSparseVector[Double] = {
+    : BSparseVector[Double] = {
     val indices = terms.map(idTerms(_)).toArray
     val values = terms.map(idfs(_)).toArray
-    new BreezeSparseVector[Double](indices, values, idTerms.size)
+    new BSparseVector[Double](indices, values, idTerms.size)
   }
 
-  def topDocsForTermQuery(US: RowMatrix, V: Matrix, query: BreezeSparseVector[Double])
+  def topDocsForTermQuery(US: RowMatrix, V: Matrix, query: BSparseVector[Double])
     : Seq[(Double, Long)] = {
-    val breezeV = new BreezeDenseMatrix[Double](V.numRows, V.numCols, V.toArray)
-    val termRowArr = (breezeV.t * query).asInstanceOf[BreezeDenseVector[Double]].toArray
+    val breezeV = new BDenseMatrix[Double](V.numRows, V.numCols, V.toArray)
+    val termRowArr = (breezeV.t * query).asInstanceOf[BDenseVector[Double]].toArray
 
     val termRowVec = Matrices.dense(termRowArr.length, 1, termRowArr)
 
@@ -230,7 +231,7 @@ object RunLSA {
     allDocWeights.top(10)
   }
 
-  def printTopTermsForTerm(normalizedVS: BreezeDenseMatrix[Double],
+  def printTopTermsForTerm(normalizedVS: BDenseMatrix[Double],
       term: String, idTerms: Map[String, Int], termIds: Map[Int, String]) {
     printIdWeights(topTermsForTerm(normalizedVS, idTerms(term)), termIds)
   }

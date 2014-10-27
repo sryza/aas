@@ -50,7 +50,7 @@ object ParseWikipedia {
     println("Number of terms: " + docFreqs.size)
     saveDocFreqs("docfreqs.tsv", docFreqs)
 
-    val numDocs = docTermFreqs.count().toInt
+    val numDocs = docIds.size
 
     val idfs = inverseDocumentFrequencies(docFreqs, numDocs)
 
@@ -73,20 +73,22 @@ object ParseWikipedia {
   }
 
   def documentFrequencies(docTermFreqs: RDD[HashMap[String, Int]]): HashMap[String, Int] = {
-    docTermFreqs.aggregate(new HashMap[String, Int]())(
-      (dfs, tfs) => {
-        tfs.keySet.foreach{ term =>
-          addTermCount(dfs, term, 1)
-        }
-        dfs
-      },
-      (dfs1, dfs2) => {
-        for ((term, count) <- dfs2) {
-          addTermCount(dfs1, term, count)
-        }
-        dfs1
+    val zero = new HashMap[String, Int]()
+    def merge(dfs: HashMap[String, Int], tfs: HashMap[String, Int])
+      : HashMap[String, Int] = {
+      tfs.keySet.foreach{ term =>
+        addTermCount(dfs, term, 1)
       }
-    )
+      dfs
+    }
+    def comb(dfs1: HashMap[String, Int], dfs2: HashMap[String, Int])
+      : HashMap[String, Int] = {
+      for ((term, count) <- dfs2) {
+        addTermCount(dfs1, term, count)
+      }
+      dfs1
+    }
+    docTermFreqs.aggregate(zero)(merge, comb)
   }
 
   def addTermCount(map: HashMap[String, Int], term: String, count: Int) {
@@ -124,8 +126,13 @@ object ParseWikipedia {
   def wikiXmlToPlainText(pageXml: String): Option[(String, String)] = {
     val page = new EnglishWikipediaPage()
     WikipediaPage.readPage(page, pageXml)
-    if (page.isEmpty) None // || !page.isArticle || page.isRedirect) None
-    else Some((page.getTitle, page.getContent))
+    if (page.isEmpty) {
+//    if (page.isEmpty || !page.isArticle || page.isRedirect ||
+//        page.getTitle.contains("(disambiguation)")) {
+      None
+    } else {
+      Some((page.getTitle, page.getContent))
+    }
   }
 
   def createNLPPipeline(): StanfordCoreNLP = {
