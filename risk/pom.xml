@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Copyright 2015 Sanford Ryza, Uri Laserson, Sean Owen and Joshua Wills
+
+ See LICENSE file for further information.
+ -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <parent>
+    <groupId>com.cloudera.datascience</groupId>
+    <artifactId>spark-book-parent</artifactId>
+    <version>1.0.0</version>
+  </parent>
+
+  <modelVersion>4.0.0</modelVersion>
+  <artifactId>risk</artifactId>
+  <packaging>jar</packaging>
+  <name>Value at Risk through Monte Carlo Simulation</name>
+  <version>1.0.0</version>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.scalanlp</groupId>
+      <artifactId>breeze-viz_2.10</artifactId>
+      <version>0.5.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-math3</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.github.nscala-time</groupId>
+      <artifactId>nscala-time_2.9.1</artifactId>
+      <version>1.4.0</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.scala-tools</groupId>
+        <artifactId>maven-scala-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>
