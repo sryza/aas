@@ -133,7 +133,7 @@ object RunKMeans {
 
   def buildNormalizationFunction(data: RDD[Vector]): (Vector => Vector) = {
     val dataAsArray = data.map(_.toArray)
-    val numCols = dataAsArray.take(1)(0).length
+    val numCols = dataAsArray.first().length
     val n = dataAsArray.count()
     val sums = dataAsArray.reduce(
       (a, b) => a.zip(b).map(t => t._1 + t._2))
@@ -229,10 +229,17 @@ object RunKMeans {
     kmeans.setRuns(10)
     kmeans.setEpsilon(1.0e-6)
     val model = kmeans.run(normalizedLabelsAndData.values)
-    val labelsInCluster = normalizedLabelsAndData.mapValues(model.predict).
-      map(t => (t._2,t._1)).groupByKey().values
+    // Predict cluster for each datum
+    val labelsAndClusters = normalizedLabelsAndData.mapValues(model.predict)
+    // Swap keys / values
+    val clustersAndLabels = labelsAndClusters.map(_.swap)
+    // Extract collections of labels, per cluster
+    val labelsInCluster = clustersAndLabels.groupByKey().values
+    // Count labels in collections
     val labelCounts = labelsInCluster.map(_.groupBy(l => l).map(_._2.size))
-    labelCounts.map(m => m.sum * entropy(m)).sum / normalizedLabelsAndData.count()
+    // Average entropy weighted by cluster size
+    val n = normalizedLabelsAndData.count()
+    labelCounts.map(m => m.sum * entropy(m)).sum / n
   }
 
   def clusteringTake4(rawData: RDD[String]): Unit = {
