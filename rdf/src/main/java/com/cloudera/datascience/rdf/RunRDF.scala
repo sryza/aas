@@ -18,7 +18,7 @@ object RunRDF {
 
   def main(args: Array[String]): Unit = {
     val sc = new SparkContext(new SparkConf().setAppName("RDF"))
-    val rawData = sc.textFile("/user/ds/covtype.data")
+    val rawData = sc.textFile("hdfs:///user/ds/covtype.data")
 
     val data = rawData.map { line =>
       val values = line.split(',').map(_.toDouble)

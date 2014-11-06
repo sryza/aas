@@ -16,7 +16,7 @@ object RunKMeans {
 
   def main(args: Array[String]): Unit = {
     val sc = new SparkContext(new SparkConf().setAppName("K-means"))
-    val rawData = sc.textFile("/user/ds/kddcup.data")
+    val rawData = sc.textFile("hdfs:///user/ds/kddcup.data")
     clusteringTake0(rawData)
     clusteringTake1(rawData)
     clusteringTake2(rawData)
@@ -123,7 +123,7 @@ object RunKMeans {
       model.predict(datum) + "," + datum.toArray.mkString(",")
     ).filter(_.hashCode % 20 == 0)
 
-    sample.saveAsTextFile("/user/ds/sample")
+    sample.saveAsTextFile("hdfs:///user/ds/sample")
 
     data.unpersist()
 
