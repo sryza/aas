@@ -176,6 +176,7 @@
   </pluginRepositories>
 
   <modules>
+    <module>intro</module>
     <module>recommender</module>
     <module>kmeans</module>
     <module>rdf</module>
