@@ -29,7 +29,7 @@ object RunKMeans {
 
   def clusteringTake0(rawData: RDD[String]): Unit = {
 
-    rawData.map(_.split(',').last).countByValue.toSeq.sortBy(_._2).reverse.foreach(println)
+    rawData.map(_.split(',').last).countByValue().toSeq.sortBy(_._2).reverse.foreach(println)
 
     val labelsAndData = rawData.map { line =>
       val buffer = line.split(',').toBuffer
@@ -49,7 +49,7 @@ object RunKMeans {
     val clusterLabelCount = labelsAndData.map { case (label, datum) =>
       val cluster = model.predict(datum)
       (cluster, label)
-    }.countByValue
+    }.countByValue()
 
     clusterLabelCount.toSeq.sorted.foreach { case ((cluster, label), count) =>
       println(f"$cluster%1s$label%18s$count%8s")
