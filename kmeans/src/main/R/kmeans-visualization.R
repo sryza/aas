@@ -6,7 +6,7 @@ install.packages("rgl") # First time only
 library(rgl)
 
 # Read clusters and data separately
-clusters_data <- read.csv(pipe("hdfs dfs -cat /user/ds/sample/*"))
+clusters_data <- read.csv(pipe("hadoop fs -cat /user/ds/sample/*"))
 clusters <- clusters_data[1]
 data <- data.matrix(clusters_data[-c(1)])
 rm(clusters_data)
