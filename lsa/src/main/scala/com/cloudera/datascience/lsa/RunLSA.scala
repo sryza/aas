@@ -60,7 +60,7 @@ object RunLSA {
 
     val lemmatized = plainText.mapPartitions(iter => {
       val pipeline = createNLPPipeline()
-      iter.map{case(title, contents) => (title, plainTextToLemmas(contents, stopWords, pipeline))}
+      iter.map{ case(title, contents) => (title, plainTextToLemmas(contents, stopWords, pipeline))}
     })
 
     val filtered = lemmatized.filter(_._2.size > 1)

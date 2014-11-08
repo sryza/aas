@@ -7,7 +7,7 @@
 package com.cloudera.datascience.lsa
 
 import java.io.{FileOutputStream, PrintStream}
-import java.util.{HashMap, Properties}
+import java.util.Properties
 
 import edu.stanford.nlp.ling.CoreAnnotations.{LemmaAnnotation, SentencesAnnotation, TokensAnnotation}
 import edu.stanford.nlp.pipeline.{Annotation, StanfordCoreNLP}
@@ -23,6 +23,7 @@ import org.apache.spark.rdd.RDD
 import scala.collection.JavaConversions._
 import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.HashMap
 
 case class Page(title: String, contents: String)
 
@@ -108,7 +109,7 @@ object ParseWikipedia {
 
   def inverseDocumentFrequencies(docFreqs: Array[(String, Int)], numDocs: Int)
     : Map[String, Double] = {
-    docFreqs.map{case (term, count) => (term, math.log(numDocs.toDouble / count))}.toMap
+    docFreqs.map{ case (term, count) => (term, math.log(numDocs.toDouble / count))}.toMap
   }
 
   def readFile(path: String, sc: SparkContext): RDD[String] = {
@@ -147,12 +148,10 @@ object ParseWikipedia {
     pipeline.annotate(doc)
     val lemmas = new ArrayBuffer[String]()
     val sentences = doc.get(classOf[SentencesAnnotation])
-    for (sentence <- sentences) {
-      for (token <- sentence.get(classOf[TokensAnnotation])) {
-        val lemma = token.get(classOf[LemmaAnnotation])
-        if (lemma.length > 2 && !stopWords.contains(lemma) && isOnlyLetters(lemma)) {
-          lemmas += lemma.toLowerCase
-        }
+    for (sentence <- sentences; token <- sentence.get(classOf[TokensAnnotation])) {
+      val lemma = token.get(classOf[LemmaAnnotation])
+      if (lemma.length > 2 && !stopWords.contains(lemma) && isOnlyLetters(lemma)) {
+        lemmas += lemma.toLowerCase
       }
     }
     lemmas
