@@ -181,6 +181,7 @@
   </pluginRepositories>
 
   <modules>
+    <module>common</module>
     <module>intro</module>
     <module>recommender</module>
     <module>kmeans</module>

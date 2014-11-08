@@ -13,45 +13,15 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>lsa</artifactId>
+  <artifactId>common</artifactId>
   <packaging>jar</packaging>
-  <name>Wikipedia Latent Semantic Analysis</name>
+  <name>Spark Book Common</name>
   <version>1.0.0</version>
-
-  <properties>
-    <corenlp.version>3.4</corenlp.version>
-  </properties>
 
   <dependencies>
     <dependency>
-      <groupId>edu.stanford.nlp</groupId>
-      <artifactId>stanford-corenlp</artifactId>
-      <version>${corenlp.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>edu.stanford.nlp</groupId>
-      <artifactId>stanford-corenlp</artifactId>
-      <version>${corenlp.version}</version>
-      <classifier>models</classifier>
-    </dependency>
-    <dependency>
-      <groupId>edu.umd</groupId>
-      <artifactId>cloud9</artifactId>
-      <version>1.4.17</version>
-    </dependency>
-    <dependency>
-      <groupId>info.bliki.wiki</groupId>
-      <artifactId>bliki-core</artifactId>
-      <version>3.0.19</version>
-    </dependency>
-    <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-client</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.cloudera.datascience</groupId>
-      <artifactId>common</artifactId>
-      <version>1.0.0</version>
     </dependency>
   </dependencies>
 
