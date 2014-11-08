@@ -6,19 +6,19 @@
 
 package com.cloudera.datascience.lsa
 
+import breeze.linalg.{DenseMatrix => BDenseMatrix, DenseVector => BDenseVector,
+SparseVector => BSparseVector}
+
 import com.cloudera.datascience.lsa.ParseWikipedia._
 
-import org.apache.spark.mllib.linalg.distributed.RowMatrix
-import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkContext, SparkConf}
 import org.apache.spark.SparkContext._
 import org.apache.spark.mllib.linalg._
+import org.apache.spark.mllib.linalg.distributed.RowMatrix
+import org.apache.spark.rdd.RDD
 
 import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
-import breeze.linalg.{DenseMatrix => BDenseMatrix, DenseVector => BDenseVector,
-  SparseVector => BSparseVector}
-import org.apache.spark.mllib.linalg.SingularValueDecomposition
 
 object RunLSA {
   def main(args: Array[String]) {

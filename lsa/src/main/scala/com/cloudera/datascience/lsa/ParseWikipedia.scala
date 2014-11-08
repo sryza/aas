@@ -6,15 +6,18 @@
 
 package com.cloudera.datascience.lsa
 
+import edu.stanford.nlp.ling.CoreAnnotations.{LemmaAnnotation, SentencesAnnotation, TokensAnnotation}
+import edu.stanford.nlp.pipeline.{Annotation, StanfordCoreNLP}
+
+import edu.umd.cloud9.collection.wikipedia.WikipediaPage
+import edu.umd.cloud9.collection.wikipedia.language.EnglishWikipediaPage
+
 import java.io.{FileOutputStream, PrintStream}
 import java.util.Properties
 
-import edu.stanford.nlp.ling.CoreAnnotations.{LemmaAnnotation, SentencesAnnotation, TokensAnnotation}
-import edu.stanford.nlp.pipeline.{Annotation, StanfordCoreNLP}
-import edu.umd.cloud9.collection.wikipedia.WikipediaPage
-import edu.umd.cloud9.collection.wikipedia.language.EnglishWikipediaPage
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.{LongWritable, Text}
+
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.mllib.linalg.{Vector, Vectors}
