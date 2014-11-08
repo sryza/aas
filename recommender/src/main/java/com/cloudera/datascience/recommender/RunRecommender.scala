@@ -7,7 +7,6 @@
 package com.cloudera.datascience.recommender
 
 import org.apache.spark.broadcast.Broadcast
-import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
 import org.apache.spark.mllib.recommendation._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
@@ -121,7 +120,8 @@ object RunRecommender {
     // Take held-out data as the "positive", and map to tuples
     val positiveUserProducts = positiveData.map(r => (r.user, r.product))
     // Make predictions for each of them, including a numeric score, and gather by user
-    val positivePredictions = predictFunction(positiveUserProducts).map(x => (x.rating, 1.0))
+    val positivePredictions = predictFunction(positiveUserProducts).groupBy(_.user)
+    // val positivePredictions = predictFunction(positiveUserProducts).map(x => (x.rating, 1.0))
 
     // Create a set of "negative" products for each user. These are randomly chosen
     // from among all of the other items, excluding those that are "positive" for the user.
@@ -152,10 +152,31 @@ object RunRecommender {
     // flatMap breaks the collections above down into one big set of tuples
 
     // Make predictions on the rest:
-    val negativePredictions = predictFunction(negativeUserProducts).map(x => (x.rating, 0.0))
+    val negativePredictions = predictFunction(negativeUserProducts).groupBy(_.user)
+    // val negativePredictions = predictFunction(negativeUserProducts).map(x => (x.rating, 0.0))
 
+    // Join positive and negative by user
+    val correctAndTotal = positivePredictions.join(negativePredictions).values.map {
+      case (positiveRatings, negativeRatings) =>
+        var correct = 0L
+        // For each pairing,
+        for (positive <- positiveRatings;
+             negative <- negativeRatings) {
+          // Count the correctly-ranked pairs
+          if (positive.rating > negative.rating) {
+            correct += 1
+          }
+        }
+        // Record correct and number possible
+        (correct, positiveRatings.size * negativeRatings.size)
+    }
+
+    correctAndTotal.keys.sum / correctAndTotal.values.sum
+
+    /*
     val metrics = new BinaryClassificationMetrics(positivePredictions.union(negativePredictions))
     metrics.areaUnderROC()
+     */
   }
 
   def predictMostListened(sc: SparkContext, train: RDD[Rating])(allData: RDD[(Int,Int)]) = {
