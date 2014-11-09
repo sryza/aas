@@ -112,16 +112,22 @@ object RunRecommender {
     artistByID.filter(idName => recommendedProductIDs.contains(idName._1)).
       values.collect().sorted.foreach(println)
 
+    unpersist(model)
   }
 
   def areaUnderCurve(positiveData: RDD[Rating],
                      allItemIDsBC: Broadcast[Array[Int]],
                      predictFunction: (RDD[(Int,Int)] => RDD[Rating])) = {
+    // What this actually computes is AUC, per user. The result is actually something
+    // that might be called "mean AUC".
+
     // Take held-out data as the "positive", and map to tuples
     val positiveUserProducts = positiveData.map(r => (r.user, r.product))
     // Make predictions for each of them, including a numeric score, and gather by user
     val positivePredictions = predictFunction(positiveUserProducts).groupBy(_.user)
-    // val positivePredictions = predictFunction(positiveUserProducts).map(x => (x.rating, 1.0))
+
+    // BinaryClassificationMetrics.areaUnderROC is not used here since there are really lots of
+    // small AUC problems, and it would be inefficient, when a direct computation is available.
 
     // Create a set of "negative" products for each user. These are randomly chosen
     // from among all of the other items, excluding those that are "positive" for the user.
@@ -153,12 +159,15 @@ object RunRecommender {
 
     // Make predictions on the rest:
     val negativePredictions = predictFunction(negativeUserProducts).groupBy(_.user)
-    // val negativePredictions = predictFunction(negativeUserProducts).map(x => (x.rating, 0.0))
 
     // Join positive and negative by user
-    val correctAndTotal = positivePredictions.join(negativePredictions).values.map {
+    positivePredictions.join(negativePredictions).values.map {
       case (positiveRatings, negativeRatings) =>
+        // AUC may be viewed as the probability that a random positive item scores
+        // higher than a random negative one. Here the proportion of all positive-negative
+        // pairs that are correctly ranked is computed. The result is equal to the AUC metric.
         var correct = 0L
+        var total = 0L
         // For each pairing,
         for (positive <- positiveRatings;
              negative <- negativeRatings) {
@@ -166,17 +175,11 @@ object RunRecommender {
           if (positive.rating > negative.rating) {
             correct += 1
           }
+          total += 1
         }
-        // Record correct and number possible
-        (correct, positiveRatings.size * negativeRatings.size)
-    }
-
-    correctAndTotal.keys.sum / correctAndTotal.values.sum
-
-    /*
-    val metrics = new BinaryClassificationMetrics(positivePredictions.union(negativePredictions))
-    metrics.areaUnderROC()
-     */
+        // Return AUC: fraction of pairs ranked correctly
+        correct.toDouble / total
+    }.mean() // Return mean AUC over users
   }
 
   def predictMostListened(sc: SparkContext, train: RDD[Rating])(allData: RDD[(Int,Int)]) = {
@@ -207,11 +210,12 @@ object RunRecommender {
       for (rank   <- Array(10,  50);
            lambda <- Array(1.0, 0.0001);
            alpha  <- Array(1.0, 40.0))
-        yield {
-          val model = ALS.trainImplicit(trainData, rank, 10, lambda, alpha)
-          val auc = areaUnderCurve(cvData, allItemIDsBC, model.predict)
-          ((rank, lambda, alpha), auc)
-        }
+      yield {
+        val model = ALS.trainImplicit(trainData, rank, 10, lambda, alpha)
+        val auc = areaUnderCurve(cvData, allItemIDsBC, model.predict)
+        unpersist(model)
+        ((rank, lambda, alpha), auc)
+      }
 
     evaluations.sortBy(_._2).reverse.foreach(println)
 
@@ -244,6 +248,15 @@ object RunRecommender {
     someRecommendations.map(
       recs => recs(0).user + " -> " + recs.map(_.product).mkString(",")
     ).foreach(println)
+
+    unpersist(model)
+  }
+
+  def unpersist(model: MatrixFactorizationModel): Unit = {
+    // At the moment, it's necessary to manually unpersist the RDDs inside the model
+    // when done with it in order to make sure they are promptly uncached
+    model.userFeatures.unpersist()
+    model.productFeatures.unpersist()
   }
 
 }
