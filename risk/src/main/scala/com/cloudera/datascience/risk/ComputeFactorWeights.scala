@@ -1,7 +1,10 @@
-package com.cloudera.datascience.risk
+/*
+ * Copyright 2015 Sanford Ryza, Uri Laserson, Sean Owen and Joshua Wills
+ *
+ * See LICENSE file for further information.
+ */
 
-// https://github.com/scalanlp/breeze/wiki/Quickstart
-// http://commons.apache.org/proper/commons-math/apidocs/org/apache/commons/math3/random/EmpiricalDistribution.html
+package com.cloudera.datascience.risk
 
 import breeze.plot._
 
@@ -19,18 +22,6 @@ import scala.collection.mutable.ArrayBuffer
 
 object ComputeFactorWeights {
   val fiveYears = 260 * 5
-
-/*  def plotDistribution(points: Array[Double], numXs: Int, stdDev: Double = 1.0) {
-    val lower = points.min
-    val upper = points.max
-    val xs = (lower until upper by (upper - lower) / numXs).toArray
-    val ys = KernelDensity.estimate(points, stdDev, xs)
-
-    val f = Figure()
-    val p = f.subplot(0)
-    p += plot(xs, ys)
-    f.refresh()
-  }*/
 
   def twoWeekReturns(history: Array[(DateTime, Double)]): Array[Double] = {
     history.sliding(10).map(window => window.last._2 - window.head._2).toArray

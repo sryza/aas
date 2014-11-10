@@ -1,3 +1,9 @@
+/*
+ * Copyright 2015 Sanford Ryza, Uri Laserson, Sean Owen and Joshua Wills
+ *
+ * See LICENSE file for further information.
+ */
+
 package com.cloudera.datascience.risk
 
 import org.apache.commons.math3.random.MersenneTwister
@@ -33,10 +39,10 @@ object MonteCarloVaR {
    * Calculate the value of a particular instrument under particular trial conditions.
    */
   def instrumentTrialValue(instrument: Array[Double], trial: Array[Double]): Double = {
-    var instrumentTrialValue = 0.0
+    var instrumentTrialValue = instrument(0)
     var i = 0
     while (i < trial.length) {
-      instrumentTrialValue += trial(i) * instrument(i)
+      instrumentTrialValue += trial(i) * instrument(i+1)
       i += 1
     }
     instrumentTrialValue

@@ -22,7 +22,7 @@
     <dependency>
       <groupId>org.scalanlp</groupId>
       <artifactId>breeze-viz_2.10</artifactId>
-      <version>0.5.1</version>
+      <version>0.9</version>
     </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>
