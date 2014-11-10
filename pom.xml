@@ -46,6 +46,12 @@
         <scope>provided</scope>
       </dependency>
       <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-graphx_${scala.minor.version}</artifactId>
+        <version>${spark.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-common</artifactId>
         <version>${hadoop.version}</version>
@@ -188,6 +194,7 @@
     <module>rdf</module>
     <module>lsa</module>
     <module>risk</module>
+    <module>graphx</module>
   </modules>
 
   <properties>
