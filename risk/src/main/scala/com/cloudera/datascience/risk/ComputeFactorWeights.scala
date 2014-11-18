@@ -12,17 +12,16 @@ import com.github.nscala_time.time.Imports._
 
 import java.io.File
 import java.text.SimpleDateFormat
-import java.util.Date
 
 import org.apache.commons.math3.stat.regression.OLSMultipleLinearRegression
-import org.apache.commons.math3.stat.correlation.Covariance
 
-import scala.io.Source
+import org.apache.spark.SparkContext._
+import org.apache.spark.rdd.RDD
+
 import scala.collection.mutable.ArrayBuffer
+import scala.io.Source
 
 object ComputeFactorWeights {
-  val fiveYears = 260 * 5
-
   def twoWeekReturns(history: Array[(DateTime, Double)]): Array[Double] = {
     history.sliding(10).map(window => window.last._2 - window.head._2).toArray
   }
@@ -113,7 +112,7 @@ object ComputeFactorWeights {
     }).reverse.toArray
   }
 
-  def plotDistribution(samples: Array[Double], bandwidth: Double = -1) {
+  def plotDistribution(samples: Array[Double], bandwidth: Double = -1): Figure = {
     val min = samples.min
     val max = samples.max
     // Using toList before toArray avoids a Scala bug
@@ -122,5 +121,20 @@ object ComputeFactorWeights {
     val f = Figure()
     val p = f.subplot(0)
     p += plot(domain, densities)
+    f
+  }
+
+  def plotDistribution(samples: RDD[Double], bandwidth: Double = -1): Figure = {
+    val stats = samples.stats()
+    val min = stats.min
+    val max = stats.max
+    // Using toList before toArray avoids a Scala bug
+    val domain = Range.Double(min, max, (max - min) / 100).toList.toArray
+    val densities = KernelDensity.estimate(samples, domain, bandwidth)
+
+    val f = Figure()
+    val p = f.subplot(0)
+    p += plot(domain, densities)
+    f
   }
 }
