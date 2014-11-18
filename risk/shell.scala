@@ -3,7 +3,7 @@ val prefix = ""
 
 import com.cloudera.datascience.risk._
 import com.cloudera.datascience.risk.ComputeFactorWeights._
-import com.cloudera.datascience.risk.MonteCarloVaR._
+import com.cloudera.datascience.risk.MonteCarloReturns._
 import java.io.File
 import org.apache.commons.math3.stat.regression.OLSMultipleLinearRegression
 import org.apache.commons.math3.stat.correlation.Covariance
@@ -25,8 +25,8 @@ val factors = (factors1 ++ factors2).map(trimToRegion(_, start, end)).map(fillIn
 
 val stocksReturns = stocks.map(twoWeekReturns(_))
 val factorsReturns = factors.map(twoWeekReturns(_))
-val squaredFactorsReturns = factorsReturns.map(_.map(x => x * x))
-val finalFactorsReturns = factorsReturns ++ squaredFactorsReturns
+//val squaredFactorsReturns = factorsReturns.map(_.map(x => x * x))
+//val finalFactorsReturns = factorsReturns ++ squaredFactorsReturns
 
 val factorMat = factorMatrix(factorsReturns)
 
@@ -37,6 +37,12 @@ val factorWeights = Array.ofDim[Double](stocksReturns.length, factors.length+1)
 for (s <- 0 until stocksReturns.length) {
   factorWeights(s) = models(s).estimateRegressionParameters()
 }
+//for (s <- 0 until stocksReturns.length) {
+//  val params = models(s).estimateRegressionParameters()
+//  for (f <- 0 until params.length) {
+//    factorWeights(s)(f) = params(f)
+//  }
+//}
 
 val factorCor = new PearsonsCorrelation(factorMat).getCorrelationMatrix().getData()
 println(factorCor.map(_.mkString("\t")).mkString("\n"))
@@ -44,23 +50,37 @@ println(factorCor.map(_.mkString("\t")).mkString("\n"))
 val factorCov = new Covariance(factorMat).getCovarianceMatrix().getData()
 println(factorCov.map(_.mkString("\t")).mkString("\n"))
 
-val factorMeans = finalFactorsReturns.map(factor => factor.sum / factor.size)
+val factorMeans = factorsReturns.map(factor => factor.sum / factor.size)
 
 // Send all instruments to every node
 val broadcastInstruments = sc.broadcast(factorWeights)
 
+/*val broadcastInstruments = {
+  val arr = factorWeights
+  sc.broadcast(arr)
+}*/
+
 // Simulation parameters
-val parallelism = 1000
+val parallelism = 1
 val baseSeed = 1496L
 
 // Generate different seeds so that our simulations don't all end up with the same results
 val seeds = (baseSeed until baseSeed + parallelism)
 val seedRdd = sc.parallelize(seeds, parallelism)
 
-val numTrials = 1000
+val numTrials = 1
 // Main computation: run simulations and compute aggregate return for each
-val trialReturns = seedRdd.flatMap(trialValues(_, numTrials / parallelism,
-  broadcastInstruments.value, factorMeans, factorCov))
+val trialReturns = seedRdd.flatMap(trialValues(_, numTrials / parallelism, broadcastInstruments.value, factorMeans, factorCov))
+/*
+{
+  val arr = factorWeights
+  val means = factorMeans
+  val covs = factorCov
+  val func = (seed: Long) => trialValues(seed, numTrials / parallelism, arr, means, covs)
+  val seedRdd2 = seedRdd
+  seedRdd2.flatMap(func)
+}
+*/
 
 // Cache the results so that we don't recompute for both of the summarizations below
 //trialReturns.cache()
