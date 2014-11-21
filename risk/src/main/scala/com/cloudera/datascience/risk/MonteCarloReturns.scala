@@ -18,8 +18,9 @@ object MonteCarloReturns {
 
     val trialReturns = new Array[Double](numTrials)
     for (i <- 0 until numTrials) {
-      val trial = multivariateNormal.sample()
-      trialReturns(i) = trialReturn(trial, instruments)
+      val trialFactorReturns = multivariateNormal.sample()
+      val trialFeatures = CalculateVaR.featurize(trialFactorReturns)
+      trialReturns(i) = trialReturn(trialFeatures, instruments)
     }
     trialReturns
   }

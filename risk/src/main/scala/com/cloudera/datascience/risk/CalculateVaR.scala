@@ -28,7 +28,8 @@ object CalculateVaR {
     val factorMat = factorMatrix(factorsReturns)
     val factorCov = new Covariance(factorMat).getCovarianceMatrix().getData()
     val factorMeans = factorsReturns.map(factor => factor.sum / factor.size).toArray
-    val factorWeights = computeFactorWeights(stocksReturns, factorMat)
+    val factorFeatures = factorMat.map(featurize)
+    val factorWeights = computeFactorWeights(stocksReturns, factorFeatures)
 
     val broadcastInstruments = sc.broadcast(factorWeights)
 
@@ -52,6 +53,12 @@ object CalculateVaR {
       factorWeights(s) = models(s).estimateRegressionParameters()
     }
     factorWeights
+  }
+
+  def featurize(factorReturns: Array[Double]): Array[Double] = {
+    val squaredReturns = factorReturns.map(x => math.signum(x) * x * x)
+    val squareRootedReturns = factorReturns.map(x => math.signum(x) * math.sqrt(math.abs(x)))
+    squaredReturns ++ squareRootedReturns ++ factorReturns
   }
 
   def readStocksAndFactors(prefix: String): (Seq[Array[Double]], Seq[Array[Double]]) = {
