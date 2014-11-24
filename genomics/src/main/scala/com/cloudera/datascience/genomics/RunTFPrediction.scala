@@ -133,13 +133,13 @@ object RunTFPrediction {
         .groupBy(x => x._1.getFeatureId.toString)
         // compute conservation stats on each peak
         .map(x => {
-        val y = x._2.toSeq
-        val peak = y(0)._1
-        val values = y.map(_._2.getValue)
-        // compute phylop features
-        val avg = values.reduce(_ + _) / values.length
-        val m = values.reduce(max(_, _))
-        val M = values.reduce(min(_, _))
+          val y = x._2.toSeq
+          val peak = y(0)._1
+          val values = y.map(_._2.getValue)
+          // compute phylop features
+          val avg = values.reduce(_ + _) / values.length
+          val m = values.reduce(max(_, _))
+          val M = values.reduce(min(_, _))
         (peak.getFeatureId, peak, avg, m, M)
       }))
 
