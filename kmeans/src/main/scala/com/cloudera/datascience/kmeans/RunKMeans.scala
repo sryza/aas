@@ -256,8 +256,9 @@ object RunKMeans {
 
   // Detect anomalies
 
-  def buildAnomalyDetector(data: RDD[Vector],
-                           normalizeFunction: (Vector => Vector)): (Vector => Boolean) = {
+  def buildAnomalyDetector(
+      data: RDD[Vector],
+      normalizeFunction: (Vector => Vector)): (Vector => Boolean) = {
     val normalizedData = data.map(normalizeFunction)
     normalizedData.cache()
 

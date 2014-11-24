@@ -82,9 +82,10 @@ object RunRDF {
     counts.map(_.toDouble / counts.sum)
   }
 
-  def evaluate(trainData: RDD[LabeledPoint],
-               cvData: RDD[LabeledPoint],
-               testData: RDD[LabeledPoint]): Unit = {
+  def evaluate(
+      trainData: RDD[LabeledPoint],
+      cvData: RDD[LabeledPoint],
+      testData: RDD[LabeledPoint]): Unit = {
 
     val evaluations =
       for (impurity <- Array("gini", "entropy");

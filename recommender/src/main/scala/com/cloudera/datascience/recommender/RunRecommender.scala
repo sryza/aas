@@ -55,9 +55,10 @@ object RunRecommender {
       }
     }.collectAsMap()
 
-  def preparation(rawUserArtistData: RDD[String],
-                  rawArtistData: RDD[String],
-                  rawArtistAlias: RDD[String]) = {
+  def preparation(
+      rawUserArtistData: RDD[String],
+      rawArtistData: RDD[String],
+      rawArtistAlias: RDD[String]) = {
     val userIDStats = rawUserArtistData.map(_.split(' ')(0).toDouble).stats()
     val itemIDStats = rawUserArtistData.map(_.split(' ')(1).toDouble).stats()
     println(userIDStats)
@@ -70,8 +71,9 @@ object RunRecommender {
     println(artistByID.lookup(badID) + " -> " + artistByID.lookup(goodID))
   }
 
-  def buildRatings(rawUserArtistData: RDD[String],
-                   artistAliasBC: Broadcast[Map[Int,Int]]) = {
+  def buildRatings(
+      rawUserArtistData: RDD[String],
+      artistAliasBC: Broadcast[Map[Int,Int]]) = {
     rawUserArtistData.map { line =>
       val tokens = line.split(' ')
       val userID = tokens(0).toInt
@@ -82,10 +84,11 @@ object RunRecommender {
     }
   }
 
-  def model(sc: SparkContext,
-            rawUserArtistData: RDD[String],
-            rawArtistData: RDD[String],
-            rawArtistAlias: RDD[String]): Unit = {
+  def model(
+      sc: SparkContext,
+      rawUserArtistData: RDD[String],
+      rawArtistData: RDD[String],
+      rawArtistAlias: RDD[String]): Unit = {
 
     val artistAliasBC = sc.broadcast(buildArtistAlias(rawArtistAlias))
 
@@ -115,9 +118,10 @@ object RunRecommender {
     unpersist(model)
   }
 
-  def areaUnderCurve(positiveData: RDD[Rating],
-                     allItemIDsBC: Broadcast[Array[Int]],
-                     predictFunction: (RDD[(Int,Int)] => RDD[Rating])) = {
+  def areaUnderCurve(
+      positiveData: RDD[Rating],
+      allItemIDsBC: Broadcast[Array[Int]],
+      predictFunction: (RDD[(Int,Int)] => RDD[Rating])) = {
     // What this actually computes is AUC, per user. The result is actually something
     // that might be called "mean AUC".
 
@@ -190,9 +194,10 @@ object RunRecommender {
     }
   }
 
-  def evaluate(sc: SparkContext,
-               rawUserArtistData: RDD[String],
-               rawArtistAlias: RDD[String]): Unit = {
+  def evaluate(
+      sc: SparkContext,
+      rawUserArtistData: RDD[String],
+      rawArtistAlias: RDD[String]): Unit = {
     val artistAliasBC = sc.broadcast(buildArtistAlias(rawArtistAlias))
 
     val allData = buildRatings(rawUserArtistData, artistAliasBC)
@@ -223,10 +228,11 @@ object RunRecommender {
     cvData.unpersist()
   }
 
-  def recommend(sc: SparkContext,
-                rawUserArtistData: RDD[String],
-                rawArtistData: RDD[String],
-                rawArtistAlias: RDD[String]): Unit = {
+  def recommend(
+      sc: SparkContext,
+      rawUserArtistData: RDD[String],
+      rawArtistData: RDD[String],
+      rawArtistAlias: RDD[String]): Unit = {
 
     val artistAliasBC = sc.broadcast(buildArtistAlias(rawArtistAlias))
     val allData = buildRatings(rawUserArtistData, artistAliasBC).cache()
