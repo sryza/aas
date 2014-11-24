@@ -65,8 +65,8 @@ object CalculateVaR {
     val start = new DateTime(2009, 10, 23, 0, 0)
     val end = new DateTime(2014, 10, 23, 0, 0)
 
-    val stocks1 = readHistories(new File(prefix + "data/stocks/")).filter(_.size >= 260*5+10)
-    val stocks = stocks1.map(trimToRegion(_, start, end)).map(fillInHistory(_, start, end))
+    val rawStocks = readHistories(new File(prefix + "data/stocks/")).filter(_.size >= 260*5+10)
+    val stocks = rawStocks.map(trimToRegion(_, start, end)).map(fillInHistory(_, start, end))
 
     val factorsPrefix = prefix + "data/factors/"
     val factors1 = Array("crudeoil.tsv", "us30yeartreasurybonds.tsv").

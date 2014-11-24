@@ -26,7 +26,8 @@ object ComputeFactorWeights {
     history.sliding(10).map(window => window.last._2 - window.head._2).toArray
   }
 
-  def linearModel(instrument: Array[Double], factorMatrix: Array[Array[Double]]): OLSMultipleLinearRegression = {
+  def linearModel(instrument: Array[Double], factorMatrix: Array[Array[Double]])
+    : OLSMultipleLinearRegression = {
     val regression = new OLSMultipleLinearRegression()
     regression.newSampleData(instrument, factorMatrix)
     regression
