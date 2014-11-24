@@ -13,6 +13,7 @@ object RunTFPrediction {
     // Convert phyloP data to Parquet for better performance; run once
     sc.adamBEDFeatureLoad("book/phylop_text").adamSave("book/phylop")
 
+    // Load the human genome reference sequence
     val hg19Data = sc.broadcast(
       new TwoBitFile(
         new LocalFileByteAccess(
