@@ -14,12 +14,12 @@ To build a jar against CDH:
 
 To run on a cluster with Spark installed:
 
-    spark-submit --class com.cloudera.sparkwordcount.SparkWordCount --master local \
-      target/sparkwordcount-0.0.1-SNAPSHOT.jar <input file>
+    spark-submit --class com.cloudera.datascience.MyApp --master local \
+      target/simplesparkproject-0.0.1-SNAPSHOT.jar <input file>
 
 To run a REPL that can reference the objects and classes defined in this project:
 
-    spark-shell --jars target/sparkwordcount-0.0.1-SNAPSHOT.jar --master local
+    spark-shell --jars target/simplesparkproject-0.0.1-SNAPSHOT.jar --master local
 
 The `--master local` argument means that the application will run in a single local process.  If
 the cluster is running a Spark standalone cluster manager, you can replace it with
