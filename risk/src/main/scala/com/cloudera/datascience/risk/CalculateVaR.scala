@@ -19,7 +19,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.rdd.RDD
 
 object CalculateVaR {
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     val sc = new SparkContext(new SparkConf().setAppName("VaR"))
     val (stocks, factors) = readStocksAndFactors("./")
     val numTrials = 10000000
