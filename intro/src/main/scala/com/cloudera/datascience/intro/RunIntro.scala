@@ -7,9 +7,10 @@
 package com.cloudera.datascience.intro
 
 import java.lang.Double.isNaN
-import org.apache.spark.rdd.RDD
+
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.SparkContext._
+import org.apache.spark.rdd.RDD
 import org.apache.spark.util.StatCounter
 
 case class MatchData(id1: Int, id2: Int,
@@ -108,7 +109,7 @@ class NAStatCounter extends Serializable {
     this
   }
 
-  override def toString() = {
+  override def toString(): String = {
     "stats: " + stats.toString + " NaN: " + missing
   }
 }

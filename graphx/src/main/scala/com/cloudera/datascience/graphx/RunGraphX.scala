@@ -6,11 +6,18 @@
 
 package com.cloudera.datascience.graphx
 
+import com.cloudera.datascience.common.XmlInputFormat
+
 import com.google.common.hash.Hashing
+
+import org.apache.hadoop.io.{Text, LongWritable}
+import org.apache.hadoop.conf.Configuration
+
 import org.apache.spark.graphx._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.SparkContext._
+
 import scala.xml._
 
 object RunGraphX extends Serializable {
@@ -98,7 +105,7 @@ object RunGraphX extends Serializable {
     hist.toSeq.sorted.foreach(println)
   }
 
-  def avgClusteringCoef(g: Graph[_, _]) = {
+  def avgClusteringCoef(g: Graph[_, _]): Double = {
     val tri = g.triangleCount()
     val den = g.degrees.mapValues(d => d * (d - 1) / 2.0)
     val cc = tri.vertices.innerJoin(den) { (id, tc, den) =>
@@ -107,7 +114,8 @@ object RunGraphX extends Serializable {
     cc.map(_._2).sum() / g.vertices.count()
   }
 
-  def samplePathLengths[V, E](sg: Graph[V, E], fraction: Double = 0.02) = {
+  def samplePathLengths[V, E](sg: Graph[V, E], fraction: Double = 0.02)
+    : RDD[(VertexId, VertexId, Int)] = {
     val replacement = false
     val sample = sg.vertices.map(_._1).sample(
       replacement, fraction, 1729L)
@@ -130,8 +138,7 @@ object RunGraphX extends Serializable {
     }.distinct().cache()
   }
 
-  def addMaps(m1: Map[VertexId, Int],
-              m2: Map[VertexId, Int]) = {
+  def addMaps(m1: Map[VertexId, Int], m2: Map[VertexId, Int]): Map[VertexId, Int] = {
     (m1.keySet ++ m2.keySet).map {
       k => k -> math.min(
         m1.getOrElse(k, Int.MaxValue),
@@ -139,16 +146,13 @@ object RunGraphX extends Serializable {
     }.toMap
   }
 
-  def update(id: VertexId,
-             state: Map[VertexId, Int],
-             msg: Map[VertexId, Int]) = {
+  def update(id: VertexId, state: Map[VertexId, Int], msg: Map[VertexId, Int])
+    : Map[VertexId, Int] = {
     addMaps(state, msg)
   }
 
-  def checkIncrement(
-    a: Map[VertexId, Int],
-    b: Map[VertexId, Int],
-    bid: VertexId) = {
+  def checkIncrement(a: Map[VertexId, Int], b: Map[VertexId, Int], bid: VertexId)
+    : Iterator[(VertexId, Map[VertexId, Int])] = {
     val aplus = a.map { case (v, d) => v -> (d + 1) }
     if (b != addMaps(aplus, b)) {
       Iterator((bid, aplus))
@@ -157,16 +161,12 @@ object RunGraphX extends Serializable {
     }
   }
 
-  def iterate(e: EdgeTriplet[Map[VertexId, Int], _]) = {
+  def iterate(e: EdgeTriplet[Map[VertexId, Int], _]): Iterator[(VertexId, Map[VertexId, Int])] = {
     checkIncrement(e.srcAttr, e.dstAttr, e.dstId) ++
     checkIncrement(e.dstAttr, e.srcAttr, e.srcId)
   }
 
   def loadMedline(sc: SparkContext, path: String): RDD[String] = {
-    import com.cloudera.datascience.common.XmlInputFormat
-    import org.apache.hadoop.io.{Text, LongWritable}
-    import org.apache.hadoop.conf.Configuration
-
     val conf = new Configuration()
     conf.set(XmlInputFormat.START_TAG_KEY, "<MedlineCitation ")
     conf.set(XmlInputFormat.END_TAG_KEY, "</MedlineCitation>")
@@ -181,17 +181,17 @@ object RunGraphX extends Serializable {
     mt.map(n => n.text)
   }
 
-  def hashId(str: String) = {
+  def hashId(str: String): Long = {
     Hashing.md5().hashString(str).asLong()
   }
 
-  def chiSq(a: Int, S: Int, A: Int, N: Long) = {
+  def chiSq(a: Int, S: Int, A: Int, N: Long): Double = {
     val F = N - S
     val B = N - A
     val b = A - a
     val c = S - a
     val d = N - b - c - a
-    val inner = (a*d - b*c) - N / 2.0
+    val inner = (a * d - b * c) - N / 2.0
     N * math.pow(inner, 2) / (A * B * S * F)
   }
 }
