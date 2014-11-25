@@ -24,7 +24,7 @@ object CalculateVaR {
   }
 
   def computeTrialReturns(stocksReturns: Seq[Array[Double]], factorsReturns: Seq[Array[Double]],
-      sc: SparkContext, numTrials: Int, parallelism: Int): RDD[Double] = {
+      sc: SparkContext, baseSeed: Long, numTrials: Int, parallelism: Int): RDD[Double] = {
     val factorMat = factorMatrix(factorsReturns)
     val factorCov = new Covariance(factorMat).getCovarianceMatrix().getData()
     val factorMeans = factorsReturns.map(factor => factor.sum / factor.size).toArray
@@ -32,8 +32,6 @@ object CalculateVaR {
     val factorWeights = computeFactorWeights(stocksReturns, factorFeatures)
 
     val broadcastInstruments = sc.broadcast(factorWeights)
-
-    val baseSeed = 1496L
 
     // Generate different seeds so that our simulations don't all end up with the same results
     val seeds = (baseSeed until baseSeed + parallelism)
@@ -47,7 +45,6 @@ object CalculateVaR {
   def computeFactorWeights(stocksReturns: Seq[Array[Double]], factorMat: Array[Array[Double]])
     : Array[Array[Double]] = {
     val models = stocksReturns.map(linearModel(_, factorMat))
-    //val factorWeights = models.map(_.estimateRegressionParameters()).toArray
     val factorWeights = Array.ofDim[Double](stocksReturns.length, factorMat.head.length+1)
     for (s <- 0 until stocksReturns.length) {
       factorWeights(s) = models(s).estimateRegressionParameters()

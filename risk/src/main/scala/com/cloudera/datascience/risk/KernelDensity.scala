@@ -12,19 +12,24 @@ import org.apache.spark.util.StatCounter
 import org.apache.commons.math3.util.FastMath
 
 object KernelDensity {
+  /**
+   * Simple heuristic to choose an appropriate bandwidth.
+   */
   def chooseBandwidth(samples: Seq[Double]): Double = {
     val stddev = new StatCounter(samples).stdev
     1.06 * stddev * math.pow(samples.size, -.2)
   }
 
+  /**
+   * Simple heuristic to choose an appropriate bandwidth.
+   */
   def chooseBandwidth(samples: RDD[Double]): Double = {
     val stats = samples.stats()
     1.06 * stats.stdev * math.pow(stats.count, -.2)
   }
 
-  def estimate(samples: Seq[Double], evaluationPoints: Array[Double], bandwidth: Double)
-    : Array[Double] = {
-    val stddev = if (bandwidth < 0) chooseBandwidth(samples) else bandwidth
+  def estimate(samples: Seq[Double], evaluationPoints: Array[Double]): Array[Double] = {
+    val stddev = chooseBandwidth(samples)
     val logStandardDeviationPlusHalfLog2Pi =
       FastMath.log(stddev) + 0.5 * FastMath.log(2 * FastMath.PI)
 
@@ -45,9 +50,8 @@ object KernelDensity {
    * Given a set of samples form a distribution, estimates its density at the set of given points.
    * Uses a Gaussian kernel with the given standard deviation.
    */
-  def estimate(samples: RDD[Double], evaluationPoints: Array[Double], bandwidth: Double)
-    : Array[Double] = {
-    val stddev = if (bandwidth < 0) chooseBandwidth(samples) else bandwidth
+  def estimate(samples: RDD[Double], evaluationPoints: Array[Double]): Array[Double] = {
+    val stddev = chooseBandwidth(samples)
     val logStandardDeviationPlusHalfLog2Pi =
       FastMath.log(stddev) + 0.5 * FastMath.log(2 * FastMath.PI)
 

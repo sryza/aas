@@ -113,25 +113,25 @@ object ComputeFactorWeights {
     }).reverse.toArray
   }
 
-  def plotDistribution(samples: Array[Double], bandwidth: Double): Figure = {
+  def plotDistribution(samples: Array[Double]): Figure = {
     val min = samples.min
     val max = samples.max
     // Using toList before toArray avoids a Scala bug
     val domain = Range.Double(min, max, (max - min) / 100).toList.toArray
-    val densities = KernelDensity.estimate(samples, domain, bandwidth)
+    val densities = KernelDensity.estimate(samples, domain)
     val f = Figure()
     val p = f.subplot(0)
     p += plot(domain, densities)
     f
   }
 
-  def plotDistribution(samples: RDD[Double], bandwidth: Double): Figure = {
+  def plotDistribution(samples: RDD[Double]): Figure = {
     val stats = samples.stats()
     val min = stats.min
     val max = stats.max
     // Using toList before toArray avoids a Scala bug
     val domain = Range.Double(min, max, (max - min) / 100).toList.toArray
-    val densities = KernelDensity.estimate(samples, domain, bandwidth)
+    val densities = KernelDensity.estimate(samples, domain)
     val f = Figure()
     val p = f.subplot(0)
     p += plot(domain, densities)
