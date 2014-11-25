@@ -15,16 +15,30 @@ import java.io.File
 
 import org.apache.commons.math3.stat.correlation.Covariance
 
-import org.apache.spark.SparkContext
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.rdd.RDD
 
 object CalculateVaR {
   def main(args: Array[String]) {
-
+    val sc = new SparkContext(new SparkConf().setAppName("VaR"))
+    val (stocks, factors) = readStocksAndFactors("./")
+    val numTrials = 10000000
+    val parallelism = 1000
+    val baseSeed = 1001L
+    val trialReturns = computeTrialReturns(stocks, factors, sc, baseSeed, numTrials, parallelism)
+    trialReturns.cache()
+    val topLosses = trialReturns.takeOrdered(math.max(numTrials / 20, 1))
+    println("VaR 5%: " + topLosses.last)
+    plotDistribution(trialReturns)
   }
 
-  def computeTrialReturns(stocksReturns: Seq[Array[Double]], factorsReturns: Seq[Array[Double]],
-      sc: SparkContext, baseSeed: Long, numTrials: Int, parallelism: Int): RDD[Double] = {
+  def computeTrialReturns(
+      stocksReturns: Seq[Array[Double]],
+      factorsReturns: Seq[Array[Double]],
+      sc: SparkContext,
+      baseSeed: Long,
+      numTrials: Int,
+      parallelism: Int): RDD[Double] = {
     val factorMat = factorMatrix(factorsReturns)
     val factorCov = new Covariance(factorMat).getCovarianceMatrix().getData()
     val factorMeans = factorsReturns.map(factor => factor.sum / factor.size).toArray
@@ -42,8 +56,9 @@ object CalculateVaR {
       trialReturns(_, numTrials / parallelism, broadcastInstruments.value, factorMeans, factorCov))
   }
 
-  def computeFactorWeights(stocksReturns: Seq[Array[Double]], factorMat: Array[Array[Double]])
-    : Array[Array[Double]] = {
+  def computeFactorWeights(
+      stocksReturns: Seq[Array[Double]],
+      factorMat: Array[Array[Double]]): Array[Array[Double]] = {
     val models = stocksReturns.map(linearModel(_, factorMat))
     val factorWeights = Array.ofDim[Double](stocksReturns.length, factorMat.head.length+1)
     for (s <- 0 until stocksReturns.length) {

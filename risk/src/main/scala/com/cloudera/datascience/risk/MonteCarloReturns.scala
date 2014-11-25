@@ -10,8 +10,12 @@ import org.apache.commons.math3.random.MersenneTwister
 import org.apache.commons.math3.distribution.MultivariateNormalDistribution
 
 object MonteCarloReturns {
-  def trialReturns(seed: Long, numTrials: Int, instruments: Seq[Array[Double]],
-      factorMeans: Array[Double], factorCovariances: Array[Array[Double]]): Seq[Double] = {
+  def trialReturns(
+      seed: Long,
+      numTrials: Int,
+      instruments: Seq[Array[Double]],
+      factorMeans: Array[Double],
+      factorCovariances: Array[Array[Double]]): Seq[Double] = {
     val rand = new MersenneTwister(seed)
     val multivariateNormal = new MultivariateNormalDistribution(rand, factorMeans,
       factorCovariances)

@@ -95,8 +95,11 @@ object KernelDensity {
     (x._1, x._2 + y._2)
   }
 
-  private def normPdf(mean: Double, standardDeviation: Double,
-      logStandardDeviationPlusHalfLog2Pi: Double, x: Double): Double = {
+  private def normPdf(
+      mean: Double,
+      standardDeviation: Double,
+      logStandardDeviationPlusHalfLog2Pi: Double,
+      x: Double): Double = {
     val x0 = x - mean
     val x1 = x0 / standardDeviation
     FastMath.exp(-0.5 * x1 * x1 - logStandardDeviationPlusHalfLog2Pi)
