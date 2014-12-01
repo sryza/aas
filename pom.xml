@@ -116,6 +116,16 @@
         <artifactId>commons-math3</artifactId>
         <version>3.3</version>
       </dependency>
+      <dependency>
+        <groupId>joda-time</groupId>
+        <artifactId>joda-time</artifactId>
+        <version>2.4</version>
+      </dependency>
+      <dependency>
+        <groupId>com.cloudera.science</groupId>
+        <artifactId>geojson</artifactId>
+        <version>0.1.0</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -194,6 +204,7 @@
     <module>rdf</module>
     <module>lsa</module>
     <module>risk</module>
+    <module>geotime</module>
     <module>graphx</module>
   </modules>
 
