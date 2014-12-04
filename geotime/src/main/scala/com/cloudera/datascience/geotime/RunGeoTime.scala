@@ -8,159 +8,142 @@ package com.cloudera.datascience.geotime
 
 import com.cloudera.science.geojson._
 import com.cloudera.science.geojson.GeoJsonProtocol._
+
 import com.esri.core.geometry.Point
+
+import com.github.nscala_time.time.Imports._
+
+import java.text.SimpleDateFormat
+
 import org.apache.spark.{HashPartitioner, Partitioner}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.util.StatCounter
 import org.apache.spark.SparkContext._
-import org.joda.time.{DateTime, Duration}
-import org.joda.time.format.DateTimeFormat
-import org.joda.time.format.DateTimeFormatter
+
 import scala.collection.mutable.ArrayBuffer
+
 import spray.json._
 
 case class Trip(
-  pickup_time: DateTime,
-  dropoff_time: DateTime,
-  pickup_loc: Point,
-  dropoff_loc: Point)
+  pickupTime: DateTime,
+  dropoffTime: DateTime,
+  pickupLoc: Point,
+  dropoffLoc: Point)
 
 object RunGeoTime extends Serializable {
 
-  val formatter = new SparkDateTimeFormatter(
-    "yyyy-MM-dd HH:mm:ss")
+  val formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
 
   def main(args: Array[String]): Unit = {
     val sc = new SparkContext(new SparkConf().setAppName("GeoTime"))
-    val taxiraw = sc.textFile("taxidata")
+    val taxiRaw = sc.textFile("taxidata")
 
     val safeParse = safe(parse)
-    val taxiparsed = taxiraw.map(safeParse)
-    taxiparsed.cache()
+    val taxiParsed = taxiRaw.map(safeParse)
+    taxiParsed.cache()
 
-    val taxibad = taxiparsed.collect {
+    val taxiBad = taxiParsed.collect {
       case t if t.isRight => t.right.get
     }
-    taxibad.collect().foreach(println)
+    taxiBad.collect().foreach(println)
 
-    val taxigood = taxiparsed.collect {
+    val taxiGood = taxiParsed.collect {
       case t if t.isLeft => t.left.get
     }
-    taxigood.cache()
+    taxiGood.cache()
 
-    taxigood.values.map(t => hours(t)).
-    countByValue().
-    toList.
-    sorted.
-    foreach(println)
+    def hours(trip: Trip): Long = {
+      val d = new Duration(trip.pickupTime, trip.dropoffTime)
+      d.getStandardHours
+    }
 
-    val taxiclean = taxigood.filter {
+    taxiGood.values.map(hours).countByValue().toList.sorted.foreach(println)
+
+    val taxiClean = taxiGood.filter {
       case (lic, trip) => {
         val hrs = hours(trip)
         0 <= hrs && hrs < 3
       }
     }
 
-    val geojson = scala.io.Source.
-    fromURL(getClass.getResource("/nyc-boroughs.geojson")).
-    mkString
+    val geojson = scala.io.Source.fromURL(getClass.getResource("/nyc-boroughs.geojson")).mkString
 
-    val jso = geojson.parseJson
-    val features = jso.convertTo[FeatureCollection]
-    val frs = features.sortBy(f => {
-      val b = f("boroughCode").convertTo[Int]
-      (b, -f.geometry.area2D())
+    val features = geojson.parseJson.convertTo[FeatureCollection]
+    val areaSortedFeatures = features.sortBy(f => {
+      val borough = f("boroughCode").convertTo[Int]
+      (borough, -f.geometry.area2D())
     })
 
-    val bfrs = sc.broadcast(frs)
-    val borough = new Function[Trip, Option[String]] with Serializable {
-      def apply(trip: Trip): Option[String] = {
-        val optf = bfrs.value.find(f => {
-          f.geometry.contains(trip.dropoff_loc)
-        })
-        optf.map(f => {
-          f("borough").convertTo[String]
-        })
-      }
-    }
-    taxiclean.values.
-    map(t => borough(t)).
-    countByValue().
-    foreach(println)
+    val broadcastFeatures = sc.broadcast(areaSortedFeatures)
 
-    val taxidone = taxiclean.filter {
+    def borough(trip: Trip): Option[String] = {
+      val feature = broadcastFeatures.value.find(f => {
+        f.geometry.contains(trip.dropoffLoc)
+      })
+      feature.map(f => {
+        f("borough").convertTo[String]
+      })
+    }
+
+    taxiClean.values.map(borough).countByValue().foreach(println)
+
+    def hasZero(trip: Trip): Boolean = {
+      val zero = new Point(0.0, 0.0)
+      (zero.equals(trip.pickupLoc) || zero.equals(trip.dropoffLoc))
+    }
+
+    val taxiDone = taxiClean.filter {
       case (lic, trip) => !hasZero(trip)
     }.cache()
-    taxidone.values.
-    map(t => borough(t)).
-    countByValue().
-    foreach(println)
 
-    val presess = taxidone.map {
+    taxiDone.values.map(borough).countByValue().foreach(println)
+
+    val presess = taxiDone.map {
       case (lic, trip) => {
-        ((lic, trip.pickup_time.getMillis), trip)
+        ((lic, trip.pickupTime.getMillis), trip)
       }
     }
-    val fkp = new FirstKeyPartitioner[String, Long](30)
-    val postsess = presess.repartitionAndSortWithinPartitions(fkp)
-    val sessions = postsess.mapPartitions(iter => toSessions(iter))
+    val partitioner = new FirstKeyPartitioner[String, Long](30)
+    val postsess = presess.repartitionAndSortWithinPartitions(partitioner)
+    val sessions = postsess.mapPartitions(toSessions)
     sessions.cache()
 
-    val boroughDuration = new Function2[Trip, Trip, (Option[String], Duration)]
-        with Serializable {
-      def apply(t1: Trip, t2: Trip) = {
-        val b = borough(t1)
-        val d = new Duration(
-          t1.dropoff_time,
-          t2.pickup_time)
-        (b, d)
-      }
+    def boroughDuration(t1: Trip, t2: Trip): (Option[String], Duration) = {
+      val b = borough(t1)
+      val d = new Duration(t1.dropoffTime, t2.pickupTime)
+      (b, d)
     }
 
-    val bdrdd = sessions.values.
-    flatMap(trips => {
+    val boroughDurations = sessions.values.flatMap(trips => {
       val iter = trips.sliding(2)
       val viter = iter.filter(_.size == 2)
       viter.map(p => boroughDuration(p(0), p(1)))
     }).cache()
 
-    bdrdd.values.map(_.getStandardHours).
-    countByValue().
-    toList.
-    sorted.
-    foreach(println)
+    boroughDurations.values.map(_.getStandardHours).countByValue().toList.sorted.foreach(println)
 
-    bdrdd.filter {
+    boroughDurations.filter {
       case (b, d) => d.getMillis >= 0
     }.mapValues(d => {
       val s = new StatCounter()
       s.merge(d.getStandardSeconds)
     }).
-    reduceByKey((a, b) => a.merge(b)).
-    collect().
-    foreach(println)
+    reduceByKey((a, b) => a.merge(b)).collect().foreach(println)
   }
 
-  def hasZero(trip: Trip) = {
-    val zero = new Point(0.0, 0.0)
-    (zero.equals(trip.pickup_loc) ||
-     zero.equals(trip.dropoff_loc))
-  }
-
-  def point(longitude: String, latitude: String) = {
+  def point(longitude: String, latitude: String): Point = {
     new Point(longitude.toDouble, latitude.toDouble)
   }
 
   def parse(line: String): (String, Trip) = {
-    val p = line.split(",")
-    val license = p(1)
-    val pickup_tm = formatter.parse(p(5))
-    val dropoff_tm = formatter.parse(p(6))
-    val pickup_loc = point(p(10), p(11))
-    val dropoff_loc = point(p(12), p(13))
+    val fields = line.split(",")
+    val license = fields(1)
+    val pickupTime = new DateTime(formatter.parse(fields(5)))
+    val dropoffTime = new DateTime(formatter.parse(fields(6)))
+    val pickupLoc = point(fields(10), fields(11))
+    val dropoffLoc = point(fields(12), fields(13))
 
-    val trip = Trip(pickup_tm, dropoff_tm,
-      pickup_loc, dropoff_loc)
+    val trip = Trip(pickupTime, dropoffTime, pickupLoc, dropoffLoc)
     (license, trip)
   }
 
@@ -176,16 +159,9 @@ object RunGeoTime extends Serializable {
     }
   }
 
-  def hours(trip: Trip) = {
-    val d = new Duration(
-      trip.pickup_time,
-      trip.dropoff_time)
-    d.getStandardHours
-  }
-
-  def split(t1: Trip, t2: Trip) = {
-    val p1 = t1.pickup_time
-    val p2 = t2.pickup_time
+  def split(t1: Trip, t2: Trip): Boolean = {
+    val p1 = t1.pickupTime
+    val p2 = t2.pickupTime
     val d = new Duration(p1, p2)
     d.getStandardHours >= 4
   }
@@ -195,12 +171,12 @@ object RunGeoTime extends Serializable {
     val res = List[(String, ArrayBuffer[Trip])]()
     it.foldLeft(res)((list, next) => list match {
       case Nil => {
-        val ((lic, ts), trip) = next
+        val ((lic, _), trip) = next
         List((lic, ArrayBuffer(trip)))
       }
       case cur :: rest => {
         val (curLic, trips) = cur
-        val ((lic, ts), trip) = next
+        val ((lic, _), trip) = next
         if (!lic.equals(curLic) || split(trips.last, trip)) {
           (lic, ArrayBuffer(trip)) :: list
         } else {
@@ -212,28 +188,7 @@ object RunGeoTime extends Serializable {
   }
 }
 
-class SparkDateTimeFormatter(val fmt: String) extends
-  Serializable {
-  @transient var formatter: DateTimeFormatter = null
-
-  private def getFormatter(): DateTimeFormatter = {
-    if (formatter == null) {
-      formatter = DateTimeFormat.forPattern(fmt)
-    }
-    formatter
-  }
-
-  def parse(str: String): DateTime = {
-    getFormatter().parseDateTime(str)
-  }
-
-  def print(dt: DateTime): String = {
-    getFormatter().print(dt)
-  }
-}
-
-class FirstKeyPartitioner[K1, K2](partitions: Int) extends
-  Partitioner {
+class FirstKeyPartitioner[K1, K2](partitions: Int) extends Partitioner {
   val delegate = new HashPartitioner(partitions)
   override def numPartitions = delegate.numPartitions
   override def getPartition(key: Any): Int = {

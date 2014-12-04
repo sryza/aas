@@ -31,7 +31,6 @@
     <dependency>
       <groupId>com.github.nscala-time</groupId>
       <artifactId>nscala-time_2.9.1</artifactId>
-      <version>1.4.0</version>
     </dependency>
   </dependencies>
 

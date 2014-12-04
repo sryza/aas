@@ -117,9 +117,9 @@
         <version>3.3</version>
       </dependency>
       <dependency>
-        <groupId>joda-time</groupId>
-        <artifactId>joda-time</artifactId>
-        <version>2.4</version>
+        <groupId>com.github.nscala-time</groupId>
+        <artifactId>nscala-time_2.9.1</artifactId>
+        <version>1.4.0</version>
       </dependency>
       <dependency>
         <groupId>com.cloudera.science</groupId>

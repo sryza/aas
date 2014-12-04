@@ -24,8 +24,8 @@
       <artifactId>hadoop-client</artifactId>
     </dependency>
     <dependency>
-      <groupId>joda-time</groupId>
-      <artifactId>joda-time</artifactId>
+      <groupId>com.github.nscala-time</groupId>
+      <artifactId>nscala-time_2.9.1</artifactId>
     </dependency>
     <dependency>
       <groupId>com.cloudera.science</groupId>
