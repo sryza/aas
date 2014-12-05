@@ -23,6 +23,7 @@ import org.apache.spark.SparkContext._
 import scala.collection.mutable.ArrayBuffer
 
 import spray.json._
+import org.apache.spark.rdd.RDD
 
 case class Trip(
   pickupTime: DateTime,
@@ -98,14 +99,8 @@ object RunGeoTime extends Serializable {
 
     taxiDone.values.map(borough).countByValue().foreach(println)
 
-    val presess = taxiDone.map {
-      case (lic, trip) => {
-        ((lic, trip.pickupTime.getMillis), trip)
-      }
-    }
-    val partitioner = new FirstKeyPartitioner[String, Long](30)
-    val postsess = presess.repartitionAndSortWithinPartitions(partitioner)
-    val sessions = postsess.mapPartitions(toSessions)
+    def secondaryKeyFunc(trip: Trip) = trip.pickupTime.getMillis
+    val sessions = groupByKeyAndSortValues(taxiDone, secondaryKeyFunc, split, 30)
     sessions.cache()
 
     def boroughDuration(t1: Trip, t2: Trip): (Option[String], Duration) = {
@@ -166,9 +161,24 @@ object RunGeoTime extends Serializable {
     d.getStandardHours >= 4
   }
 
-  def toSessions(it: Iterator[((String, Long), Trip)]):
-      Iterator[(String, List[Trip])] = {
-    val res = List[(String, ArrayBuffer[Trip])]()
+  def groupByKeyAndSortValues[K, V, S](
+      rdd: RDD[(K, V)],
+      secondaryKeyFunc: (V) => S,
+      splitFunc: (V, V) => Boolean,
+      numPartitions: Int): RDD[(K, List[V])] = {
+    val presess = rdd.map {
+      case (lic, trip) => {
+        ((lic, secondaryKeyFunc(trip)), trip)
+      }
+    }
+    val partitioner = new FirstKeyPartitioner[K, S](numPartitions)
+    presess.repartitionAndSortWithinPartitions(partitioner).mapPartitions(groupSorted(_, splitFunc))
+  }
+
+  def groupSorted[K, V, S](
+      it: Iterator[((K, S), V)],
+      splitFunc: (V, V) => Boolean): Iterator[(K, List[V])] = {
+    val res = List[(K, ArrayBuffer[V])]()
     it.foldLeft(res)((list, next) => list match {
       case Nil => {
         val ((lic, _), trip) = next
@@ -177,7 +187,7 @@ object RunGeoTime extends Serializable {
       case cur :: rest => {
         val (curLic, trips) = cur
         val ((lic, _), trip) = next
-        if (!lic.equals(curLic) || split(trips.last, trip)) {
+        if (!lic.equals(curLic) || splitFunc(trips.last, trip)) {
           (lic, ArrayBuffer(trip)) :: list
         } else {
           trips.append(trip)
