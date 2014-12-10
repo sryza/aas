@@ -15,10 +15,10 @@ pseudocounts = pd.DataFrame(counts, index=bases) + 1
 pwm = pseudocounts / pseudocounts.sum()
 
 # generate the PWM in Scala
-vectors = []
+maps = []
 for pos in xrange(n):
     pairs = []
     for base in bases:
-        pairs.append("'%s' -> %.5f" % (base, pwm.ix[base, pos]))
-    vectors.append('Vector(' + ','.join(pairs) + ').toMap')
-print 'val pwm = Vector(\n  ' + ',\n  '.join(vectors) + ')'
+        pairs.append("'%s'->%.4f" % (base, pwm.ix[base, pos]))
+    maps.append('Map(' + ','.join(pairs) + ')')
+print 'val pwm = Vector(\n  ' + ',\n  '.join(maps) + ')'
