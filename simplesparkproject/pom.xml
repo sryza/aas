@@ -17,10 +17,14 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.cloudera.datascience</groupId>
   <artifactId>simplesparkproject</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>0.0.1</version>
   <packaging>jar</packaging>
-  <name>"Simple Spark Project"</name>
-  
+  <name>Simple Spark Project</name>
+
+  <prerequisites>
+    <maven>3.1.1</maven>
+  </prerequisites>
+
   <repositories>
     <repository>
       <id>scala-tools.org</id>
@@ -45,6 +49,9 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <java.version>1.7</java.version>
+    <scala.minor.version>2.10</scala.minor.version>
+    <scala.complete.version>${scala.minor.version}.4</scala.complete.version>
     <spark.version>1.2.0-SNAPSHOT</spark.version>
   </properties>
 
@@ -64,10 +71,10 @@
       </plugin>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.1</version>
+        <version>3.2</version>
         <configuration>
-          <source>1.6</source>
-          <target>1.6</target>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
         </configuration>
       </plugin>
     </plugins>  
@@ -77,12 +84,25 @@
     <dependency>
       <groupId>org.scala-lang</groupId>
       <artifactId>scala-library</artifactId>
-      <version>2.10.4</version>
+      <version>${scala.complete.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <!-- Make sure this version is harmonized -->
+    <dependency>
+      <groupId>org.scala-lang</groupId>
+      <artifactId>scalap</artifactId>
+      <version>${scala.complete.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.scala-lang</groupId>
+      <artifactId>scala-compiler</artifactId>
+      <version>${scala.complete.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>spark-core_2.10</artifactId>
+      <artifactId>spark-core_${scala.minor.version}</artifactId>
       <version>${spark.version}</version>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
   
