@@ -175,11 +175,12 @@ object RunKMeans {
   // Clustering, Take 3
 
   def buildCategoricalAndLabelFunction(rawData: RDD[String]): (String => (String,Vector)) = {
-    val protocols = rawData.map(_.split(',')(1)).distinct().collect().zipWithIndex.toMap
-    val services = rawData.map(_.split(',')(2)).distinct().collect().zipWithIndex.toMap
-    val tcpStates = rawData.map(_.split(',')(3)).distinct().collect().zipWithIndex.toMap
+    val splitData = rawData.map(_.split(','))
+    val protocols = splitData.map(_(1)).distinct().collect().zipWithIndex.toMap
+    val services = splitData.map(_(2)).distinct().collect().zipWithIndex.toMap
+    val tcpStates = splitData.map(_(3)).distinct().collect().zipWithIndex.toMap
     (line: String) => {
-      val buffer = line.split(",").toBuffer
+      val buffer = line.split(',').toBuffer
       val protocol = buffer.remove(1)
       val service = buffer.remove(1)
       val tcpState = buffer.remove(1)
@@ -228,17 +229,24 @@ object RunKMeans {
     kmeans.setK(k)
     kmeans.setRuns(10)
     kmeans.setEpsilon(1.0e-6)
+
     val model = kmeans.run(normalizedLabelsAndData.values)
+
     // Predict cluster for each datum
     val labelsAndClusters = normalizedLabelsAndData.mapValues(model.predict)
+
     // Swap keys / values
     val clustersAndLabels = labelsAndClusters.map(_.swap)
+
     // Extract collections of labels, per cluster
     val labelsInCluster = clustersAndLabels.groupByKey().values
+
     // Count labels in collections
     val labelCounts = labelsInCluster.map(_.groupBy(l => l).map(_._2.size))
+
     // Average entropy weighted by cluster size
     val n = normalizedLabelsAndData.count()
+
     labelCounts.map(m => m.sum * entropy(m)).sum / n
   }
 
@@ -282,9 +290,9 @@ object RunKMeans {
     val data = originalAndData.values
     val normalizeFunction = buildNormalizationFunction(data)
     val anomalyDetector = buildAnomalyDetector(data, normalizeFunction)
-    val anomalies = originalAndData.filter(
-      originalAndDatum => anomalyDetector(originalAndDatum._2)
-    ).keys
+    val anomalies = originalAndData.filter {
+      case (original, datum) => anomalyDetector(datum)
+    }.keys
     anomalies.take(10).foreach(println)
   }
 

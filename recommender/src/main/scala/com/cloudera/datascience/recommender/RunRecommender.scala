@@ -75,12 +75,9 @@ object RunRecommender {
       rawUserArtistData: RDD[String],
       artistAliasBC: Broadcast[Map[Int,Int]]) = {
     rawUserArtistData.map { line =>
-      val tokens = line.split(' ')
-      val userID = tokens(0).toInt
-      val originalArtistID = tokens(1).toInt
-      val count = tokens(2).toInt
-      val artistID = artistAliasBC.value.getOrElse(originalArtistID, originalArtistID)
-      Rating(userID, artistID, count)
+      val Array(userID, artistID, count) = line.split(' ').map(_.toInt)
+      val finalArtistID = artistAliasBC.value.getOrElse(artistID, artistID)
+      Rating(userID, finalArtistID, count)
     }
   }
 
@@ -98,22 +95,25 @@ object RunRecommender {
 
     trainData.unpersist()
 
-    model.userFeatures.mapValues(java.util.Arrays.toString).take(3).foreach(println)
+    println(model.userFeatures.mapValues(_.mkString(", ")).first)
 
     val userID = 2093760
     val recommendations = model.recommendProducts(userID, 5)
     recommendations.foreach(println)
     val recommendedProductIDs = recommendations.map(_.product).toSet
 
-    val existingProductIDs = rawUserArtistData.map(_.split(' ')).
-      filter(_(0).toInt == userID).map(_(1).toInt).collect().toSet
+    val rawArtistsForUser = rawUserArtistData.map(_.split(' ')).
+      filter { case Array(user,_,_) => user.toInt == userID }
+
+    val existingProducts = rawArtistsForUser.map { case Array(_,artist,_) => artist.toInt }.
+      collect().toSet
 
     val artistByID = buildArtistByID(rawArtistData)
 
-    artistByID.filter(idName => existingProductIDs.contains(idName._1)).
-      values.collect().sorted.foreach(println)
-    artistByID.filter(idName => recommendedProductIDs.contains(idName._1)).
-      values.collect().sorted.foreach(println)
+    artistByID.filter { case (id, name) => existingProducts.contains(id) }.
+      values.collect().foreach(println)
+    artistByID.filter { case (id, name) => recommendedProductIDs.contains(id) }.
+      values.collect().foreach(println)
 
     unpersist(model)
   }
@@ -201,10 +201,10 @@ object RunRecommender {
     val artistAliasBC = sc.broadcast(buildArtistAlias(rawArtistAlias))
 
     val allData = buildRatings(rawUserArtistData, artistAliasBC)
-    val trainAndCV = allData.randomSplit(Array(0.9, 0.1))
+    val Array(trainData, cvData) = allData.randomSplit(Array(0.9, 0.1))
+    trainData.cache()
+    cvData.cache()
 
-    val trainData = trainAndCV(0).cache()
-    val cvData = trainAndCV(1).cache()
     val allItemIDs = allData.map(_.product).distinct().collect()
     val allItemIDsBC = sc.broadcast(allItemIDs)
 
@@ -245,14 +245,13 @@ object RunRecommender {
 
     val artistByID = buildArtistByID(rawArtistData)
 
-    artistByID.filter(idName =>
-      recommendedProductIDs.contains(idName._1)
-    ).values.collect().sorted.foreach(println)
+    artistByID.filter { case (id, name) => recommendedProductIDs.contains(id) }.
+       values.collect().foreach(println)
 
     val someUsers = allData.map(_.user).distinct().take(100)
     val someRecommendations = someUsers.map(userID => model.recommendProducts(userID, 5))
     someRecommendations.map(
-      recs => recs(0).user + " -> " + recs.map(_.product).mkString(",")
+      recs => recs.head.user + " -> " + recs.map(_.product).mkString(", ")
     ).foreach(println)
 
     unpersist(model)

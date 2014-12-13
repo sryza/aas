@@ -28,10 +28,10 @@ object RunRDF {
     }
 
     // Split into 80% train, 10% cross validation, 10% test
-    val trainAndCVAndTestData = data.randomSplit(Array(0.8, 0.1, 0.1))
-    val trainData = trainAndCVAndTestData(0).cache()
-    val cvData = trainAndCVAndTestData(1).cache()
-    val testData = trainAndCVAndTestData(2).cache()
+    val Array(trainData, cvData, testData) = data.randomSplit(Array(0.8, 0.1, 0.1))
+    trainData.cache()
+    cvData.cache()
+    testData.cache()
 
     simpleDecisionTree(trainData, cvData)
     randomClassifier(trainData, cvData)
@@ -124,10 +124,10 @@ object RunRDF {
     
     val data = unencodeOneHot(rawData)
 
-    val trainAndCVAndTestData = data.randomSplit(Array(0.8, 0.1, 0.1))
-    val trainData = trainAndCVAndTestData(0).cache()
-    val cvData = trainAndCVAndTestData(1).cache()
-    val testData = trainAndCVAndTestData(2).cache()
+    val Array(trainData, cvData, testData) = data.randomSplit(Array(0.8, 0.1, 0.1))
+    trainData.cache()
+    cvData.cache()
+    testData.cache()
 
     val evaluations =
       for (impurity <- Array("gini", "entropy");
@@ -158,9 +158,9 @@ object RunRDF {
 
     val data = unencodeOneHot(rawData)
 
-    val trainAndCVAndTestData = data.randomSplit(Array(0.9, 0.1))
-    val trainData = trainAndCVAndTestData(0).cache()
-    val cvData = trainAndCVAndTestData(1).cache()
+    val Array(trainData, cvData) = data.randomSplit(Array(0.9, 0.1))
+    trainData.cache()
+    cvData.cache()
 
     val forest = RandomForest.trainClassifier(
       trainData, 7, Map(10 -> 4, 11 -> 40), 20, "auto", "entropy", 30, 300)
