@@ -30,8 +30,6 @@ import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 
-case class Page(title: String, contents: String)
-
 object ParseWikipedia {
   /**
    * Returns a term-document matrix where each element is the TF-IDF of the row's document and
@@ -41,10 +39,7 @@ object ParseWikipedia {
       sc: SparkContext): (RDD[Vector], Map[Int, String], Map[Long, String], Map[String, Double]) = {
     val docTermFreqs = docs.mapValues(terms => {
       val termFreqsInDoc = terms.foldLeft(new HashMap[String, Int]()) {
-        (map, term) => {
-          addTermCount(map, term, 1)
-          map
-        }
+        (map, term) => map += term -> (map.getOrElse(term, 0) + 1)
       }
       termFreqsInDoc
     })
@@ -61,44 +56,40 @@ object ParseWikipedia {
     val idfs = inverseDocumentFrequencies(docFreqs, numDocs)
 
     // Maps terms to their indices in the vector
-    val termIndices = idfs.keys.zipWithIndex.toMap
+    val termIds = idfs.keys.zipWithIndex.toMap
 
     val bIdfs = sc.broadcast(idfs).value
-    val bTermIndices = sc.broadcast(termIndices).value
+    val bTermIds = sc.broadcast(termIds).value
 
-    val vecs = docTermFreqs.map(_._2).map(docTermFreqs => {
-      val docTotalTerms = docTermFreqs.values().sum
-      val termScores = docTermFreqs.filter{
-        case (term, freq) => bTermIndices.containsKey(term)
+    val vecs = docTermFreqs.map(_._2).map(termFreqs => {
+      val docTotalTerms = termFreqs.values().sum
+      val termScores = termFreqs.filter {
+        case (term, freq) => bTermIds.containsKey(term)
       }.map{
-        case (term, freq) => (bTermIndices(term), bIdfs(term) * docTermFreqs(term) / docTotalTerms)
+        case (term, freq) => (bTermIds(term), bIdfs(term) * termFreqs(term) / docTotalTerms)
       }.toSeq
-      Vectors.sparse(bTermIndices.size, termScores)
+      Vectors.sparse(bTermIds.size, termScores)
     })
-    (vecs, termIndices.map(_.swap), docIds, idfs)
+    (vecs, termIds.map(_.swap), docIds, idfs)
   }
 
   def documentFrequencies(docTermFreqs: RDD[HashMap[String, Int]]): HashMap[String, Int] = {
     val zero = new HashMap[String, Int]()
     def merge(dfs: HashMap[String, Int], tfs: HashMap[String, Int])
       : HashMap[String, Int] = {
-      tfs.keySet.foreach{ term =>
-        addTermCount(dfs, term, 1)
+      tfs.keySet.foreach { term =>
+        dfs += term -> (dfs.getOrElse(term, 0) + 1)
       }
       dfs
     }
     def comb(dfs1: HashMap[String, Int], dfs2: HashMap[String, Int])
       : HashMap[String, Int] = {
       for ((term, count) <- dfs2) {
-        addTermCount(dfs1, term, count)
+        dfs1 += term -> (dfs1.getOrElse(term, 0) + count)
       }
       dfs1
     }
     docTermFreqs.aggregate(zero)(merge, comb)
-  }
-
-  def addTermCount(map: HashMap[String, Int], term: String, count: Int) {
-    map += term -> (map.getOrElse(term, 0) + count)
   }
 
   def documentFrequenciesDistributed(docTermFreqs: RDD[HashMap[String, Int]], numTerms: Int)
@@ -132,9 +123,8 @@ object ParseWikipedia {
   def wikiXmlToPlainText(pageXml: String): Option[(String, String)] = {
     val page = new EnglishWikipediaPage()
     WikipediaPage.readPage(page, pageXml)
-    if (page.isEmpty) {
-//    if (page.isEmpty || !page.isArticle || page.isRedirect ||
-//        page.getTitle.contains("(disambiguation)")) {
+    if (page.isEmpty || !page.isArticle || page.isRedirect ||
+        page.getTitle.contains("(disambiguation)")) {
       None
     } else {
       Some((page.getTitle, page.getContent))
