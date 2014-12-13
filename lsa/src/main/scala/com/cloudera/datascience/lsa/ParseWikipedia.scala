@@ -164,7 +164,7 @@ object ParseWikipedia {
     true
   }
 
-  def loadStopWords(path: String) = scala.io.Source.fromFile(path).getLines.toSet
+  def loadStopWords(path: String) = scala.io.Source.fromFile(path).getLines().toSet
 
   def saveDocFreqs(path: String, docFreqs: Array[(String, Int)]) {
     val ps = new PrintStream(new FileOutputStream(path))

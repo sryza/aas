@@ -19,12 +19,12 @@ val stocks1 = readHistories(new File(prefix + "data/stocks/")).filter(_.size >= 
 val stocks = stocks1.map(trimToRegion(_, start, end)).map(fillInHistory(_, start, end))
 
 val factorsPrefix = prefix + "data/factors/"
-val factors1 = Array("crudeoil.tsv", "us30yeartreasurybonds.tsv").map(x => new File(factorsPrefix + x)).map(readInvestingDotComHistory(_))
-val factors2 = Array("SNP.csv", "NDX.csv").map(x => new File(factorsPrefix + x)).map(readYahooHistory(_))
+val factors1 = Array("crudeoil.tsv", "us30yeartreasurybonds.tsv").map(x => new File(factorsPrefix + x)).map(readInvestingDotComHistory)
+val factors2 = Array("SNP.csv", "NDX.csv").map(x => new File(factorsPrefix + x)).map(readYahooHistory)
 val factors = (factors1 ++ factors2).map(trimToRegion(_, start, end)).map(fillInHistory(_, start, end))
 
-val stocksReturns = stocks.map(twoWeekReturns(_))
-val factorsReturns = factors.map(twoWeekReturns(_))
+val stocksReturns = stocks.map(twoWeekReturns)
+val factorsReturns = factors.map(twoWeekReturns)
 //val squaredFactorsReturns = factorsReturns.map(_.map(x => x * x))
 //val finalFactorsReturns = factorsReturns ++ squaredFactorsReturns
 

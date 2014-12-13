@@ -75,7 +75,7 @@ object ComputeFactorWeights {
     val filled = new ArrayBuffer[(DateTime, Double)]()
     var curDate = start
     while (curDate < end) {
-      if (!cur.tail.isEmpty && cur.tail.head._1 == curDate) {
+      if (cur.tail.nonEmpty && cur.tail.head._1 == curDate) {
         cur = cur.tail
       }
 
@@ -90,7 +90,7 @@ object ComputeFactorWeights {
 
   def readInvestingDotComHistory(file: File): Array[(DateTime, Double)] = {
     val format = new SimpleDateFormat("MMM d, yyyy")
-    val lines = Source.fromFile(file).getLines.toSeq
+    val lines = Source.fromFile(file).getLines().toSeq
     lines.map(line => {
       val cols = line.split('\t')
       val date = new DateTime(format.parse(cols(0)))
@@ -104,7 +104,7 @@ object ComputeFactorWeights {
    */
   def readYahooHistory(file: File): Array[(DateTime, Double)] = {
     val format = new SimpleDateFormat("yyyy-MM-dd")
-    val lines = Source.fromFile(file).getLines.toSeq
+    val lines = Source.fromFile(file).getLines().toSeq
     lines.tail.map(line => {
       val cols = line.split(',')
       val date = new DateTime(format.parse(cols(0)))

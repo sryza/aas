@@ -148,7 +148,7 @@ object RunGeoTime extends Serializable {
     new Function[S, Either[T, (S, Exception)]] with Serializable {
       def apply(s: S): Either[T, (S, Exception)] = {
         try {
-          return Left(f(s))
+          Left(f(s))
         } catch {
           case e: Exception => Right((s, e))
         }

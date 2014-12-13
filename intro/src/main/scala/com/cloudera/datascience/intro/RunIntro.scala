@@ -60,9 +60,9 @@ object RunIntro extends Serializable {
 
     val statsm = statsWithMissing(parsed.filter(_.matched).map(_.scores))
     val statsn = statsWithMissing(parsed.filter(!_.matched).map(_.scores))
-    statsm.zip(statsn).map { case(m, n) => {
+    statsm.zip(statsn).map { case(m, n) =>
       (m.missing + n.missing, m.stats.mean - n.stats.mean)
-    } }.foreach(println)
+    }.foreach(println)
 
     def naz(d: Double) = if (Double.NaN.equals(d)) 0.0 else d
     val ct = parsed.map(md => {
@@ -78,7 +78,7 @@ object RunIntro extends Serializable {
 
   def statsWithMissing(rdd: RDD[Array[Double]]): Array[NAStatCounter] = {
     val nastats = rdd.mapPartitions((iter: Iterator[Array[Double]]) => {
-      val nas: Array[NAStatCounter] = iter.next.map(d => NAStatCounter(d))
+      val nas: Array[NAStatCounter] = iter.next().map(d => NAStatCounter(d))
       iter.foreach(arr => {
         nas.zip(arr).foreach { case (n, d) => n.add(d) }
       })
@@ -109,7 +109,7 @@ class NAStatCounter extends Serializable {
     this
   }
 
-  override def toString(): String = {
+  override def toString: String = {
     "stats: " + stats.toString + " NaN: " + missing
   }
 }
