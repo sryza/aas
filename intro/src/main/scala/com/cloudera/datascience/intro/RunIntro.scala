@@ -30,7 +30,7 @@ object RunIntro extends Serializable {
     }
 
     def parse(line: String) = {
-      val pieces = line.split(",")
+      val pieces = line.split(',')
       val id1 = pieces(0).toInt
       val id2 = pieces(1).toInt
       val scores = pieces.slice(2, 11).map(toDouble)

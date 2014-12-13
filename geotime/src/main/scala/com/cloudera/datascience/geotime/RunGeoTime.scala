@@ -131,7 +131,7 @@ object RunGeoTime extends Serializable {
   }
 
   def parse(line: String): (String, Trip) = {
-    val fields = line.split(",")
+    val fields = line.split(',')
     val license = fields(1)
     val pickupTime = new DateTime(formatter.parse(fields(5)))
     val dropoffTime = new DateTime(formatter.parse(fields(6)))
