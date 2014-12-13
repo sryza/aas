@@ -25,6 +25,8 @@ import scala.collection.mutable.ArrayBuffer
 import spray.json._
 import org.apache.spark.rdd.RDD
 
+import scala.reflect.ClassTag
+
 case class Trip(
   pickupTime: DateTime,
   dropoffTime: DateTime,
@@ -161,7 +163,7 @@ object RunGeoTime extends Serializable {
     d.getStandardHours >= 4
   }
 
-  def groupByKeyAndSortValues[K, V, S](
+  def groupByKeyAndSortValues[K : Ordering : ClassTag, V : ClassTag, S](
       rdd: RDD[(K, V)],
       secondaryKeyFunc: (V) => S,
       splitFunc: (V, V) => Boolean,
@@ -172,6 +174,7 @@ object RunGeoTime extends Serializable {
       }
     }
     val partitioner = new FirstKeyPartitioner[K, S](numPartitions)
+    implicit val ordering: Ordering[(K,S)] = Ordering.by(_._1)
     presess.repartitionAndSortWithinPartitions(partitioner).mapPartitions(groupSorted(_, splitFunc))
   }
 
