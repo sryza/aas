@@ -150,7 +150,7 @@ object RunTFPrediction {
           val peak = y(0)._1
           val values = y.map(_._2.getValue)
           // compute phylop features
-          val avg = values.sum.toDouble / values.length
+          val avg = values.reduce(_ + _) / values.length
           val m = values.max
           val M = values.min
           (peak.getFeatureId, peak, avg, m, M)
