@@ -17,6 +17,8 @@ import org.bdgenomics.adam.rdd.features.FeaturesContext._
 import org.bdgenomics.adam.util.{TwoBitFile, SequenceUtils}
 import org.bdgenomics.formats.avro.Feature
 
+import scala.annotation.tailrec
+
 object RunTFPrediction {
   def main(args: Array[String]) {
     val sc = new SparkContext(new SparkConf().setAppName("TF Prediction"))
@@ -70,18 +72,18 @@ object RunTFPrediction {
     // fn for finding closest transcription start site
     // naive...make this better
     def distanceToClosest(loci: Vector[Long], query: Long): Long = {
-      loci.map(x => math.abs(x - query)).reduce(math.min)
+      loci.map(x => math.abs(x - query)).min
     }
 
     // compute a motif score based on the TF PWM
     def scorePWM(ref: String): Double = {
       val score1 = ref.sliding(pwmData.value.length).map(s => {
         s.zipWithIndex.map(p => pwmData.value(p._2)(p._1)).reduce(_ * _)
-      }).reduce(math.max)
+      }).max
       val rc = SequenceUtils.reverseComplement(ref)
       val score2 = rc.sliding(pwmData.value.length).map(s => {
         s.zipWithIndex.map(p => pwmData.value(p._2)(p._1)).reduce(_ * _)
-      }).reduce(math.max)
+      }).max
       math.max(score1, score2)
     }
 
@@ -92,6 +94,7 @@ object RunTFPrediction {
     def isOverlapping(i1: (Long, Long), i2: (Long, Long)) = (i1._2 > i2._1) && (i1._1 < i2._2)
 
     def isOverlappingLoci(loci: Vector[(Long, Long)], testInterval: (Long, Long)): Boolean = {
+      @tailrec
       def search(m: Int, M: Int): Boolean = {
         val mid = m + (M - m) / 2
         if (M <= m) {
@@ -111,9 +114,9 @@ object RunTFPrediction {
 
     val dataByCellLine = cellLines.map(cellLine => {
       val dnaseRDD = sc.adamNarrowPeakFeatureLoad(
-        "/user/ds/genomics/dnase/%s.DNase.narrowPeak".format(cellLine))
+        s"/user/ds/genomics/dnase/$cellLine.DNase.narrowPeak")
       val chipseqRDD = sc.adamNarrowPeakFeatureLoad(
-        "/user/ds/genomics/chip-seq/%s.ChIP-seq.CTCF.narrowPeak".format(cellLine))
+        s"/user/ds/genomics/chip-seq/$cellLine.ChIP-seq.CTCF.narrowPeak")
 
       // generate the fn for labeling the data points
       val bindingData = sc.broadcast(chipseqRDD
@@ -146,9 +149,9 @@ object RunTFPrediction {
           val peak = y(0)._1
           val values = y.map(_._2.getValue)
           // compute phylop features
-          val avg = values.reduce(_ + _) / values.length
-          val m = values.reduce(math.max(_, _))
-          val M = values.reduce(math.min(_, _))
+          val avg = values.sum.toDouble / values.length
+          val m = values.max
+          val M = values.min
         (peak.getFeatureId, peak, avg, m, M)
       })
 

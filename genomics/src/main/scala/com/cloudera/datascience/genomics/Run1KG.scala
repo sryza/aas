@@ -6,9 +6,9 @@
 
 package com.cloudera.datascience.genomics
 
+import org.apache.spark.{SparkContext, SparkConf}
 import org.bdgenomics.adam.rdd.ADAMContext._
 import org.bdgenomics.formats.avro.Genotype
-import org.bdgenomics.formats.avro.Variant
 
 object Run1KG {
   def main(args: Array[String]) {
