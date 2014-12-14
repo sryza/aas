@@ -186,6 +186,7 @@
     <module>risk</module>
     <module>geotime</module>
     <module>graphx</module>
+    <module>genomics</module>
   </modules>
 
   <properties>

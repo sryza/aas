@@ -6,26 +6,34 @@
 
 package com.cloudera.datascience.genomics
 
+import java.io.File
+
+import org.apache.spark.{SparkConf, SparkContext}
+import org.bdgenomics.adam.io.LocalFileByteAccess
+import org.bdgenomics.adam.models.ReferenceRegion
+import org.bdgenomics.adam.rdd.ADAMContext._
+import org.bdgenomics.adam.rdd.RegionJoin
+import org.bdgenomics.adam.rdd.features.FeaturesContext._
+import org.bdgenomics.adam.util.{TwoBitFile, SequenceUtils}
+import org.bdgenomics.formats.avro.Feature
+
 object RunTFPrediction {
   def main(args: Array[String]) {
     val sc = new SparkContext(new SparkConf().setAppName("TF Prediction"))
-
-    // Convert phyloP data to Parquet for better performance; run once
-    sc.adamBEDFeatureLoad("book/phylop_text").adamSave("book/phylop")
 
     // Load the human genome reference sequence
     val hg19Data = sc.broadcast(
       new TwoBitFile(
         new LocalFileByteAccess(
-          new File("book/hg19.2bit"))))
+          new File("/user/ds/genomics/hg19.2bit"))))
 
-    val phylopRDD = (sc.adamLoad[Feature, Nothing]("book/phylop")
+    val phylopRDD = sc.adamLoad[Feature, Nothing]("/user/ds/genomics/phylop")
       // clean up a few irregularities in the phylop data
-      .filter(f => f.getStart <= f.getEnd))
+      .filter(f => f.getStart <= f.getEnd)
 
-    val tssRDD = (sc.adamGTFFeatureLoad("book/gencode.v18.annotation.gtf")
-      .filter(_.getFeatureType.toString == "transcript")
-      .map(f => (f.getContig.getContigName.toString, f.getStart)))
+    val tssRDD = sc.adamGTFFeatureLoad("/user/ds/genomics/gencode.v18.annotation.gtf")
+      .filter(_.getFeatureType == "transcript")
+      .map(f => (f.getContig.getContigName, f.getStart))
 
     val tssData = sc.broadcast(tssRDD
       // group by contig name
@@ -33,27 +41,28 @@ object RunTFPrediction {
       // create Vector of TSS sites for each chromosome
       .map(p => (p._1, p._2.map(_._2.toLong).toVector))
       // collect into local in-memory structure for broadcasting
-      .collect().toMap
+      .collect().toMap)
 
     // CTCF PWM from http://dx.doi.org/10.1016/j.cell.2012.12.009
+    // generated with genomics/src/main/python/pwm.py
     val pwmData = sc.broadcast(Vector(
-      Vector('A' -> 0.45526,'C' -> 0.04591,'G' -> 0.14554,'T' -> 0.35328).toMap,
-      Vector('A' -> 0.17371,'C' -> 0.02484,'G' -> 0.75917,'T' -> 0.04228).toMap,
-      Vector('A' -> 0.00012,'C' -> 0.94066,'G' -> 0.00012,'T' -> 0.05911).toMap,
-      Vector('A' -> 0.00514,'C' -> 0.00008,'G' -> 0.98789,'T' -> 0.00689).toMap,
-      Vector('A' -> 0.06239,'C' -> 0.93217,'G' -> 0.00087,'T' -> 0.00457).toMap,
-      Vector('A' -> 0.00463,'C' -> 0.99518,'G' -> 0.00010,'T' -> 0.00010).toMap,
-      Vector('A' -> 0.50749,'C' -> 0.45329,'G' -> 0.01812,'T' -> 0.02109).toMap,
-      Vector('A' -> 0.00795,'C' -> 0.64065,'G' -> 0.00009,'T' -> 0.35131).toMap,
-      Vector('A' -> 0.00011,'C' -> 0.99955,'G' -> 0.00023,'T' -> 0.00011).toMap,
-      Vector('A' -> 0.00266,'C' -> 0.00351,'G' -> 0.00168,'T' -> 0.99215).toMap,
-      Vector('A' -> 0.76351,'C' -> 0.02103,'G' -> 0.11749,'T' -> 0.09798).toMap,
-      Vector('A' -> 0.00740,'C' -> 0.13144,'G' -> 0.79898,'T' -> 0.06219).toMap,
-      Vector('A' -> 0.01384,'C' -> 0.38794,'G' -> 0.00008,'T' -> 0.59815).toMap,
-      Vector('A' -> 0.00035,'C' -> 0.00012,'G' -> 0.98535,'T' -> 0.01419).toMap,
-      Vector('A' -> 0.03987,'C' -> 0.01127,'G' -> 0.73119,'T' -> 0.21767).toMap,
-      Vector('A' -> 0.15198,'C' -> 0.28197,'G' -> 0.00822,'T' -> 0.55783).toMap,
-      Vector('A' -> 0.36438,'C' -> 0.31051,'G' -> 0.21245,'T' -> 0.11267).toMap))
+      Map('A'->0.4553,'C'->0.0459,'G'->0.1455,'T'->0.3533),
+      Map('A'->0.1737,'C'->0.0248,'G'->0.7592,'T'->0.0423),
+      Map('A'->0.0001,'C'->0.9407,'G'->0.0001,'T'->0.0591),
+      Map('A'->0.0051,'C'->0.0001,'G'->0.9879,'T'->0.0069),
+      Map('A'->0.0624,'C'->0.9322,'G'->0.0009,'T'->0.0046),
+      Map('A'->0.0046,'C'->0.9952,'G'->0.0001,'T'->0.0001),
+      Map('A'->0.5075,'C'->0.4533,'G'->0.0181,'T'->0.0211),
+      Map('A'->0.0079,'C'->0.6407,'G'->0.0001,'T'->0.3513),
+      Map('A'->0.0001,'C'->0.9995,'G'->0.0002,'T'->0.0001),
+      Map('A'->0.0027,'C'->0.0035,'G'->0.0017,'T'->0.9921),
+      Map('A'->0.7635,'C'->0.0210,'G'->0.1175,'T'->0.0980),
+      Map('A'->0.0074,'C'->0.1314,'G'->0.7990,'T'->0.0622),
+      Map('A'->0.0138,'C'->0.3879,'G'->0.0001,'T'->0.5981),
+      Map('A'->0.0003,'C'->0.0001,'G'->0.9853,'T'->0.0142),
+      Map('A'->0.0399,'C'->0.0113,'G'->0.7312,'T'->0.2177),
+      Map('A'->0.1520,'C'->0.2820,'G'->0.0082,'T'->0.5578),
+      Map('A'->0.3644,'C'->0.3105,'G'->0.2125,'T'->0.1127)))
 
 
     // Define some utility functions
@@ -61,19 +70,19 @@ object RunTFPrediction {
     // fn for finding closest transcription start site
     // naive...make this better
     def distanceToClosest(loci: Vector[Long], query: Long): Long = {
-      loci.map(x => abs(x - query)).reduce(min(_, _))
+      loci.map(x => math.abs(x - query)).reduce(math.min)
     }
 
     // compute a motif score based on the TF PWM
     def scorePWM(ref: String): Double = {
       val score1 = ref.sliding(pwmData.value.length).map(s => {
         s.zipWithIndex.map(p => pwmData.value(p._2)(p._1)).reduce(_ * _)
-      }).reduce(max(_, _))
+      }).reduce(math.max)
       val rc = SequenceUtils.reverseComplement(ref)
       val score2 = rc.sliding(pwmData.value.length).map(s => {
         s.zipWithIndex.map(p => pwmData.value(p._2)(p._1)).reduce(_ * _)
-      }).reduce(max(_, _))
-      max(score1, score2)
+      }).reduce(math.max)
+      math.max(score1, score2)
     }
 
     // functions for labeling the DNase peaks as binding sites or not; compute
@@ -102,14 +111,14 @@ object RunTFPrediction {
 
     val dataByCellLine = cellLines.map(cellLine => {
       val dnaseRDD = sc.adamNarrowPeakFeatureLoad(
-        "book/dnase/%s.DNase.narrowPeak".format(cellLine))
+        "/user/ds/genomics/dnase/%s.DNase.narrowPeak".format(cellLine))
       val chipseqRDD = sc.adamNarrowPeakFeatureLoad(
-        "book/chip-seq/%s.ChIP-seq.CTCF.narrowPeak".format(cellLine))
+        "/user/ds/genomics/chip-seq/%s.ChIP-seq.CTCF.narrowPeak".format(cellLine))
 
       // generate the fn for labeling the data points
       val bindingData = sc.broadcast(chipseqRDD
         // group peaks by chromosome
-        .groupBy(_.getContig.getContigName.toString) // RDD[(String, Iterable[Feature])]
+        .groupBy(_.getContig.getContigName) // RDD[(String, Iterable[Feature])]
         // for each chr, for each ChIP-seq peak, extract start and end
         .map(p => (p._1, p._2.map(f => (f.getStart: Long, f.getEnd: Long)))) // RDD[(String, Iterable[(Long, Long)])]
         // for each chr, sort the peaks (we know they're not overlapping)
@@ -128,9 +137,9 @@ object RunTFPrediction {
       }
 
       // join the DNase peak data with conservation data to generate those features
-      val dnaseWithPhylopRDD = (RegionJoin.partitionAndJoin(sc, dnaseRDD, phylopRDD)
+      val dnaseWithPhylopRDD = RegionJoin.partitionAndJoin(sc, dnaseRDD, phylopRDD)
         // group the conservation values by DNase peak
-        .groupBy(x => x._1.getFeatureId.toString)
+        .groupBy(x => x._1.getFeatureId)
         // compute conservation stats on each peak
         .map(x => {
           val y = x._2.toSeq
@@ -138,10 +147,10 @@ object RunTFPrediction {
           val values = y.map(_._2.getValue)
           // compute phylop features
           val avg = values.reduce(_ + _) / values.length
-          val m = values.reduce(max(_, _))
-          val M = values.reduce(min(_, _))
+          val m = values.reduce(math.max(_, _))
+          val M = values.reduce(math.min(_, _))
         (peak.getFeatureId, peak, avg, m, M)
-      }))
+      })
 
       dnaseWithPhylopRDD.map(tup => {
         val peak = tup._2
@@ -153,7 +162,7 @@ object RunTFPrediction {
         val avg = tup._3
         val m = tup._4
         val M = tup._5
-        val closest_tss = min(
+        val closest_tss = math.min(
           distanceToClosest(tssData.value(contig), peak.getStart),
           distanceToClosest(tssData.value(contig), peak.getEnd))
         val tf = "CTCF"

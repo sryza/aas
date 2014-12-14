@@ -18,6 +18,23 @@
   <name>Genomics analysis with ADAM</name>
   <version>1.0.0</version>
 
+  <properties>
+    <adam.version>0.15.1-SNAPSHOT</adam.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.bdgenomics.bdg-formats</groupId>
+      <artifactId>bdg-formats</artifactId>
+      <version>0.4.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.bdgenomics.adam</groupId>
+      <artifactId>adam-core</artifactId>
+      <version>${adam.version}</version>
+    </dependency>
+  </dependencies>
+
   <build>
     <plugins>
       <plugin>

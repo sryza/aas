@@ -21,4 +21,4 @@ for pos in xrange(n):
     for base in bases:
         pairs.append("'%s'->%.4f" % (base, pwm.ix[base, pos]))
     maps.append('Map(' + ','.join(pairs) + ')')
-print 'val pwm = Vector(\n  ' + ',\n  '.join(maps) + ')'
+print 'val pwmData = sc.broadcast(Vector(\n  ' + ',\n  '.join(maps) + '))'
