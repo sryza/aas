@@ -16,6 +16,7 @@ import org.bdgenomics.adam.rdd.RegionJoin
 import org.bdgenomics.adam.rdd.features.FeaturesContext._
 import org.bdgenomics.adam.util.{TwoBitFile, SequenceUtils}
 import org.bdgenomics.formats.avro.Feature
+import org.bdgenomics.adam.rich.ReferenceMappingContext._
 
 import scala.annotation.tailrec
 
@@ -152,8 +153,8 @@ object RunTFPrediction {
           val avg = values.sum.toDouble / values.length
           val m = values.max
           val M = values.min
-        (peak.getFeatureId, peak, avg, m, M)
-      })
+          (peak.getFeatureId, peak, avg, m, M)
+        })
 
       dnaseWithPhylopRDD.map(tup => {
         val peak = tup._2
