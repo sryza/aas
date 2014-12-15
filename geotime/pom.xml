@@ -28,10 +28,6 @@
       <artifactId>nscala-time_2.9.1</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.cloudera.science</groupId>
-      <artifactId>geojson</artifactId>
-    </dependency>
-    <dependency>
       <groupId>com.cloudera.datascience</groupId>
       <artifactId>common</artifactId>
       <version>${project.version}</version>

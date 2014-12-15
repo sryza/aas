@@ -6,8 +6,7 @@
 
 package com.cloudera.datascience.geotime
 
-import com.cloudera.science.geojson._
-import com.cloudera.science.geojson.GeoJsonProtocol._
+import com.cloudera.datascience.GeoJsonProtocol._
 
 import com.esri.core.geometry.Point
 
@@ -15,17 +14,15 @@ import com.github.nscala_time.time.Imports._
 
 import java.text.SimpleDateFormat
 
-import org.apache.spark.{HashPartitioner, Partitioner}
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.util.StatCounter
+import org.apache.spark.{HashPartitioner, Partitioner, SparkConf, SparkContext}
 import org.apache.spark.SparkContext._
+import org.apache.spark.rdd.RDD
+import org.apache.spark.util.StatCounter
 
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.ClassTag
 
 import spray.json._
-import org.apache.spark.rdd.RDD
-
-import scala.reflect.ClassTag
 
 case class Trip(
   pickupTime: DateTime,
