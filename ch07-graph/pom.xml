@@ -13,7 +13,7 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>graphx</artifactId>
+  <artifactId>graph</artifactId>
   <packaging>jar</packaging>
   <name>Network Analysis with GraphX</name>
   <version>1.0.0</version>
