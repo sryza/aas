@@ -6,7 +6,7 @@
 
 package com.cloudera.datascience.geotime
 
-import com.cloudera.datascience.GeoJsonProtocol._
+import com.cloudera.datascience.geotime.GeoJsonProtocol._
 
 import com.esri.core.geometry.Point
 

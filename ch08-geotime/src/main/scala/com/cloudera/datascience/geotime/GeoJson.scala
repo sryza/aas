@@ -3,7 +3,7 @@
  *
  * See LICENSE file for further information.
  */
-package com.cloudera.datascience
+package com.cloudera.datascience.geotime
 
 import com.esri.core.geometry.{Geometry, GeometryEngine}
 
