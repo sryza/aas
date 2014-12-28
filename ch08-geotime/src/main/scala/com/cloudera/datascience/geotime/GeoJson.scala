@@ -9,20 +9,20 @@ import com.esri.core.geometry.{Geometry, GeometryEngine}
 
 import spray.json._
 
-case class Feature(val id: Option[JsValue],
-    val properties: Map[String, JsValue],
-    val geometry: RichGeometry) {
+case class Feature(id: Option[JsValue],
+                   properties: Map[String, JsValue],
+                   geometry: RichGeometry) {
   def apply(property: String) = properties(property)
   def get(property: String) = properties.get(property)
 }
 
-case class FeatureCollection(val features: Array[Feature])
+case class FeatureCollection(features: Array[Feature])
     extends IndexedSeq[Feature] {
   def apply(index: Int) = features(index)
   def length = features.length
 }
 
-case class GeometryCollection(val geometries: Array[RichGeometry])
+case class GeometryCollection(geometries: Array[RichGeometry])
     extends IndexedSeq[RichGeometry] {
   def apply(index: Int) = geometries(index)
   def length = geometries.length

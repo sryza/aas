@@ -57,5 +57,5 @@ class RichGeometry(val geometry: Geometry,
  * for a given Geometry instance.
  */
 object RichGeometry extends Serializable {
-  implicit def createRichGeometry(g: Geometry) = new RichGeometry(g)
+  implicit def createRichGeometry(g: Geometry): RichGeometry = new RichGeometry(g)
 }

@@ -79,11 +79,11 @@ object RunTFPrediction {
     // compute a motif score based on the TF PWM
     def scorePWM(ref: String): Double = {
       val score1 = ref.sliding(pwmData.value.length).map(s => {
-        s.zipWithIndex.map(p => pwmData.value(p._2)(p._1)).reduce(_ * _)
+        s.zipWithIndex.map(p => pwmData.value(p._2)(p._1)).product
       }).max
       val rc = SequenceUtils.reverseComplement(ref)
       val score2 = rc.sliding(pwmData.value.length).map(s => {
-        s.zipWithIndex.map(p => pwmData.value(p._2)(p._1)).reduce(_ * _)
+        s.zipWithIndex.map(p => pwmData.value(p._2)(p._1)).product
       }).max
       math.max(score1, score2)
     }

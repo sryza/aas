@@ -219,7 +219,7 @@ object RunLSA {
   def topDocsForTermQuery(US: RowMatrix, V: Matrix, query: BSparseVector[Double])
     : Seq[(Double, Long)] = {
     val breezeV = new BDenseMatrix[Double](V.numRows, V.numCols, V.toArray)
-    val termRowArr = (breezeV.t * query).asInstanceOf[BDenseVector[Double]].toArray
+    val termRowArr = (breezeV.t * query).toArray
 
     val termRowVec = Matrices.dense(termRowArr.length, 1, termRowArr)
 
