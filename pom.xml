@@ -10,7 +10,7 @@
   <artifactId>spark-book-parent</artifactId>
   <version>1.0.0</version>
   <packaging>pom</packaging>
-  <name>Spark Book Parent</name>
+  <name>Advanced Analytics with Spark</name>
 
   <dependencyManagement>
     <dependencies>
@@ -173,15 +173,15 @@
 
   <modules>
     <module>common</module>
-    <module>intro</module>
-    <module>recommender</module>
-    <module>kmeans</module>
-    <module>rdf</module>
-    <module>lsa</module>
-    <module>risk</module>
-    <module>geotime</module>
-    <module>graph</module>
-    <module>genomics</module>
+    <module>ch02-intro</module>
+    <module>ch03-recommender</module>
+    <module>ch04-rdf</module>
+    <module>ch05-kmeans</module>
+    <module>ch06-lsa</module>
+    <module>ch07-graph</module>
+    <module>ch08-geotime</module>
+    <module>ch09-risk</module>
+    <module>ch10-genomics</module>
   </modules>
 
   <properties>
