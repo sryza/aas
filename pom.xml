@@ -124,7 +124,7 @@
     </dependencies>
   </dependencyManagement>
 
-  <url>http://github.mtv.cloudera.com/sandyryza/spark-book</url>
+  <url>http://github.com/sryza/aas</url>
   <inceptionYear>2014</inceptionYear>
   <licenses>
     <license>
@@ -158,12 +158,12 @@
 
   <issueManagement>
     <system>GitHub</system>
-    <url>http://github.mtv.cloudera.com/sandyryza/spark-book/issues</url>
+    <url>http://github.com/sryza/aas/issues</url>
   </issueManagement>
   <scm>
-    <connection>scm:git:https://github.mtv.cloudera.com/sandyryza/spark-book.git</connection>
-    <url>scm:git:https://github.mtv.cloudera.com/sandyryza/spark-book.git</url>
-    <developerConnection>scm:git:https://github.mtv.cloudera.com/sandyryza/spark-book.git</developerConnection>
+    <connection>scm:git:https://github.com/sryza/aas.git</connection>
+    <url>scm:git:https://github.com/sryza/aas.git</url>
+    <developerConnection>scm:git:https://github.com/sryza/aas.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
 
@@ -191,7 +191,7 @@
     <java.version>1.7</java.version>
     <scala.minor.version>2.10</scala.minor.version>
     <scala.complete.version>${scala.minor.version}.4</scala.complete.version>
-    <spark.version>1.2.0-SNAPSHOT</spark.version>
+    <spark.version>1.2.0</spark.version>
   </properties>
 
   <dependencies>
@@ -351,24 +351,5 @@
       </plugin>
     </plugins>
   </build>
-
-  <profiles>
-    <profile>
-      <id>cdh5.3</id>
-      <repositories>
-        <repository>
-          <id>cloudera</id>
-          <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
-          <snapshots>
-            <enabled>true</enabled>
-          </snapshots>
-        </repository>
-      </repositories>
-      <properties>
-        <hadoop.version>2.5.0-cdh5.3.0-SNAPSHOT</hadoop.version>
-        <spark.version>1.2.0-cdh5.3.0-SNAPSHOT</spark.version>
-      </properties>
-    </profile>
-  </profiles>
 
 </project>
