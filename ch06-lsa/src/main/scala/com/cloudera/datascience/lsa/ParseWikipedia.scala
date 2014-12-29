@@ -138,7 +138,7 @@ object ParseWikipedia {
   }
 
   def plainTextToLemmas(text: String, stopWords: Set[String], pipeline: StanfordCoreNLP)
-      : Seq[String] = {
+    : Seq[String] = {
     val doc = new Annotation(text)
     pipeline.annotate(doc)
     val lemmas = new ArrayBuffer[String]()

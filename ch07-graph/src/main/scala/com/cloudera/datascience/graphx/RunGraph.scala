@@ -4,7 +4,7 @@
  * See LICENSE file for further information.
  */
 
-package com.cloudera.datascience.graphx
+package com.cloudera.datascience.graph
 
 import com.cloudera.datascience.common.XmlInputFormat
 
@@ -20,10 +20,10 @@ import org.apache.spark.SparkContext._
 
 import scala.xml._
 
-object RunGraphX extends Serializable {
+object RunGraph extends Serializable {
 
   def main(args: Array[String]): Unit = {
-    val sc = new SparkContext(new SparkConf().setAppName("GraphX"))
+    val sc = new SparkContext(new SparkConf().setAppName("Graph"))
 
     val medline_raw = loadMedline(sc, "hdfs:///user/ds/medline")
     val mxml = medline_raw.map(XML.loadString)
