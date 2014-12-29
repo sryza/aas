@@ -28,6 +28,10 @@ object KernelDensity {
     1.06 * stats.stdev * math.pow(stats.count, -.2)
   }
 
+  /**
+   * Given a set of samples form a distribution, estimates its density at the set of given points.
+   * Uses a Gaussian kernel with the given standard deviation.
+   */
   def estimate(samples: Seq[Double], evaluationPoints: Array[Double]): Array[Double] = {
     val stddev = chooseBandwidth(samples)
     val logStandardDeviationPlusHalfLog2Pi =
