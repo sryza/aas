@@ -19,7 +19,7 @@
   <version>1.0.0</version>
 
   <properties>
-    <corenlp.version>3.5.0</corenlp.version>
+    <corenlp.version>3.4.1</corenlp.version>
   </properties>
 
   <dependencies>
