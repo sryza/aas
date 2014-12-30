@@ -6,15 +6,15 @@
 
 package com.cloudera.datascience.recommender
 
-import org.apache.spark.broadcast.Broadcast
-import org.apache.spark.mllib.recommendation._
-import org.apache.spark.rdd.RDD
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.SparkContext._
-
 import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
+
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.SparkContext._
+import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.mllib.recommendation._
+import org.apache.spark.rdd.RDD
 
 object RunRecommender {
 
@@ -73,10 +73,10 @@ object RunRecommender {
 
   def buildRatings(
       rawUserArtistData: RDD[String],
-      artistAliasBC: Broadcast[Map[Int,Int]]) = {
+      bArtistAlias: Broadcast[Map[Int,Int]]) = {
     rawUserArtistData.map { line =>
       val Array(userID, artistID, count) = line.split(' ').map(_.toInt)
-      val finalArtistID = artistAliasBC.value.getOrElse(artistID, artistID)
+      val finalArtistID = bArtistAlias.value.getOrElse(artistID, artistID)
       Rating(userID, finalArtistID, count)
     }
   }
@@ -87,9 +87,9 @@ object RunRecommender {
       rawArtistData: RDD[String],
       rawArtistAlias: RDD[String]): Unit = {
 
-    val artistAliasBC = sc.broadcast(buildArtistAlias(rawArtistAlias))
+    val bArtistAlias = sc.broadcast(buildArtistAlias(rawArtistAlias))
 
-    val trainData = buildRatings(rawUserArtistData, artistAliasBC).cache()
+    val trainData = buildRatings(rawUserArtistData, bArtistAlias).cache()
 
     val model = ALS.trainImplicit(trainData, 10, 5, 0.01, 1.0)
 
@@ -120,7 +120,7 @@ object RunRecommender {
 
   def areaUnderCurve(
       positiveData: RDD[Rating],
-      allItemIDsBC: Broadcast[Array[Int]],
+      bAllItemIDs: Broadcast[Array[Int]],
       predictFunction: (RDD[(Int,Int)] => RDD[Rating])) = {
     // What this actually computes is AUC, per user. The result is actually something
     // that might be called "mean AUC".
@@ -140,7 +140,7 @@ object RunRecommender {
       userIDAndPosItemIDs => {
         // Init an RNG and the item IDs set once for partition
         val random = new Random()
-        val allItemIDs = allItemIDsBC.value
+        val allItemIDs = bAllItemIDs.value
         userIDAndPosItemIDs.map { case (userID, posItemIDs) =>
           val posItemIDSet = posItemIDs.toSet
           val negative = new ArrayBuffer[Int]()
@@ -187,10 +187,10 @@ object RunRecommender {
   }
 
   def predictMostListened(sc: SparkContext, train: RDD[Rating])(allData: RDD[(Int,Int)]) = {
-    val listenCountBC =
+    val bListenCount =
       sc.broadcast(train.map(r => (r.product, r.rating)).reduceByKey(_ + _).collectAsMap())
     allData.map { case (user, product) =>
-      Rating(user, product, listenCountBC.value.getOrElse(product, 0.0))
+      Rating(user, product, bListenCount.value.getOrElse(product, 0.0))
     }
   }
 
@@ -198,17 +198,17 @@ object RunRecommender {
       sc: SparkContext,
       rawUserArtistData: RDD[String],
       rawArtistAlias: RDD[String]): Unit = {
-    val artistAliasBC = sc.broadcast(buildArtistAlias(rawArtistAlias))
+    val bArtistAlias = sc.broadcast(buildArtistAlias(rawArtistAlias))
 
-    val allData = buildRatings(rawUserArtistData, artistAliasBC)
+    val allData = buildRatings(rawUserArtistData, bArtistAlias)
     val Array(trainData, cvData) = allData.randomSplit(Array(0.9, 0.1))
     trainData.cache()
     cvData.cache()
 
     val allItemIDs = allData.map(_.product).distinct().collect()
-    val allItemIDsBC = sc.broadcast(allItemIDs)
+    val bAllItemIDs = sc.broadcast(allItemIDs)
 
-    val mostListenedAUC = areaUnderCurve(cvData, allItemIDsBC, predictMostListened(sc, trainData))
+    val mostListenedAUC = areaUnderCurve(cvData, bAllItemIDs, predictMostListened(sc, trainData))
     println(mostListenedAUC)
 
     val evaluations =
@@ -217,7 +217,7 @@ object RunRecommender {
            alpha  <- Array(1.0, 40.0))
       yield {
         val model = ALS.trainImplicit(trainData, rank, 10, lambda, alpha)
-        val auc = areaUnderCurve(cvData, allItemIDsBC, model.predict)
+        val auc = areaUnderCurve(cvData, bAllItemIDs, model.predict)
         unpersist(model)
         ((rank, lambda, alpha), auc)
       }
@@ -234,8 +234,8 @@ object RunRecommender {
       rawArtistData: RDD[String],
       rawArtistAlias: RDD[String]): Unit = {
 
-    val artistAliasBC = sc.broadcast(buildArtistAlias(rawArtistAlias))
-    val allData = buildRatings(rawUserArtistData, artistAliasBC).cache()
+    val bArtistAlias = sc.broadcast(buildArtistAlias(rawArtistAlias))
+    val allData = buildRatings(rawUserArtistData, bArtistAlias).cache()
     val model = ALS.trainImplicit(allData, 50, 10, 1.0, 40.0)
     allData.unpersist()
 

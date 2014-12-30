@@ -52,7 +52,7 @@ object RunRisk {
     val factorFeatures = factorMat.map(featurize)
     val factorWeights = computeFactorWeights(stocksReturns, factorFeatures)
 
-    val broadcastInstruments = sc.broadcast(factorWeights)
+    val bInstruments = sc.broadcast(factorWeights)
 
     // Generate different seeds so that our simulations don't all end up with the same results
     val seeds = (baseSeed until baseSeed + parallelism)
@@ -60,7 +60,7 @@ object RunRisk {
 
     // Main computation: run simulations and compute aggregate return for each
     seedRdd.flatMap(
-      trialReturns(_, numTrials / parallelism, broadcastInstruments.value, factorMeans, factorCov))
+      trialReturns(_, numTrials / parallelism, bInstruments.value, factorMeans, factorCov))
   }
 
   def computeFactorWeights(

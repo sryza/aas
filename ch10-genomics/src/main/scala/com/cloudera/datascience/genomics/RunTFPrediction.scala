@@ -25,7 +25,7 @@ object RunTFPrediction {
     val sc = new SparkContext(new SparkConf().setAppName("TF Prediction"))
 
     // Load the human genome reference sequence
-    val hg19Data = sc.broadcast(
+    val bHg19Data = sc.broadcast(
       new TwoBitFile(
         new LocalFileByteAccess(
           new File("/user/ds/genomics/hg19.2bit"))))
@@ -38,7 +38,7 @@ object RunTFPrediction {
       .filter(_.getFeatureType == "transcript")
       .map(f => (f.getContig.getContigName, f.getStart))
 
-    val tssData = sc.broadcast(tssRDD
+    val bTssData = sc.broadcast(tssRDD
       // group by contig name
       .groupBy(_._1)
       // create Vector of TSS sites for each chromosome
@@ -48,7 +48,7 @@ object RunTFPrediction {
 
     // CTCF PWM from http://dx.doi.org/10.1016/j.cell.2012.12.009
     // generated with genomics/src/main/python/pwm.py
-    val pwmData = sc.broadcast(Vector(
+    val bPwmData = sc.broadcast(Vector(
       Map('A'->0.4553,'C'->0.0459,'G'->0.1455,'T'->0.3533),
       Map('A'->0.1737,'C'->0.0248,'G'->0.7592,'T'->0.0423),
       Map('A'->0.0001,'C'->0.9407,'G'->0.0001,'T'->0.0591),
@@ -78,12 +78,12 @@ object RunTFPrediction {
 
     // compute a motif score based on the TF PWM
     def scorePWM(ref: String): Double = {
-      val score1 = ref.sliding(pwmData.value.length).map(s => {
-        s.zipWithIndex.map(p => pwmData.value(p._2)(p._1)).product
+      val score1 = ref.sliding(bPwmData.value.length).map(s => {
+        s.zipWithIndex.map(p => bPwmData.value(p._2)(p._1)).product
       }).max
       val rc = SequenceUtils.reverseComplement(ref)
-      val score2 = rc.sliding(pwmData.value.length).map(s => {
-        s.zipWithIndex.map(p => pwmData.value(p._2)(p._1)).product
+      val score2 = rc.sliding(bPwmData.value.length).map(s => {
+        s.zipWithIndex.map(p => bPwmData.value(p._2)(p._1)).product
       }).max
       math.max(score1, score2)
     }
@@ -120,7 +120,7 @@ object RunTFPrediction {
         s"/user/ds/genomics/chip-seq/$cellLine.ChIP-seq.CTCF.narrowPeak")
 
       // generate the fn for labeling the data points
-      val bindingData = sc.broadcast(chipseqRDD
+      val bBindingData = sc.broadcast(chipseqRDD
         // group peaks by chromosome
         .groupBy(_.getContig.getContigName) // RDD[(String, Iterable[Feature])]
         // for each chr, for each ChIP-seq peak, extract start and end
@@ -132,11 +132,11 @@ object RunTFPrediction {
 
       def generateLabel(f: Feature) = {
         val contig = f.getContig.getContigName
-        if (!bindingData.value.contains(contig)) {
+        if (!bBindingData.value.contains(contig)) {
           false
         } else {
           val testInterval = (f.getStart: Long, f.getEnd: Long)
-          isOverlappingLoci(bindingData.value(contig), testInterval)
+          isOverlappingLoci(bBindingData.value(contig), testInterval)
         }
       }
 
@@ -162,13 +162,13 @@ object RunTFPrediction {
         val contig = peak.getContig.getContigName
         val start = peak.getStart
         val end = peak.getEnd
-        val score = scorePWM(hg19Data.value.extract(ReferenceRegion(peak)))
+        val score = scorePWM(bHg19Data.value.extract(ReferenceRegion(peak)))
         val avg = tup._3
         val m = tup._4
         val M = tup._5
         val closest_tss = math.min(
-          distanceToClosest(tssData.value(contig), peak.getStart),
-          distanceToClosest(tssData.value(contig), peak.getEnd))
+          distanceToClosest(bTssData.value(contig), peak.getStart),
+          distanceToClosest(bTssData.value(contig), peak.getEnd))
         val tf = "CTCF"
         val line = cellLine
         val bound = generateLabel(peak)

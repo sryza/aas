@@ -74,10 +74,10 @@ object RunGeoTime extends Serializable {
       (borough, -f.geometry.area2D())
     })
 
-    val broadcastFeatures = sc.broadcast(areaSortedFeatures)
+    val bFeatures = sc.broadcast(areaSortedFeatures)
 
     def borough(trip: Trip): Option[String] = {
-      val feature = broadcastFeatures.value.find(f => {
+      val feature = bFeatures.value.find(f => {
         f.geometry.contains(trip.dropoffLoc)
       })
       feature.map(f => {
