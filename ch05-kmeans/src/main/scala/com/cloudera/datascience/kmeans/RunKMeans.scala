@@ -121,7 +121,7 @@ object RunKMeans {
 
     val sample = data.map(datum =>
       model.predict(datum) + "," + datum.toArray.mkString(",")
-    ).filter(_.hashCode % 20 == 0)
+    ).sample(false, 0.05)
 
     sample.saveAsTextFile("hdfs:///user/ds/sample")
 
