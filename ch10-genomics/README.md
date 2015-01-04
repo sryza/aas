@@ -71,10 +71,10 @@ phyloP data:
 hadoop fs -mkdir /user/ds/genomics/phylop_text
 for i in $(seq 1 22); do
     echo "chr$i.phyloP46way.wigFix.gz"
-    curl -s -L "http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/phyloP46way/vertebrate/chr$i.phyloP46way.wigFix.gz" | gunzip | hadoop fs -put - "/user/ds/genomics/phylop_text/chr$i.phyloP46way.wigFix"
+    curl -s -L "http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/phyloP46way/vertebrate/chr$i.phyloP46way.wigFix.gz" | gunzip | adam-submit wigfix2bed | hadoop fs -put - "/user/ds/genomics/phylop_text/chr$i.phyloP46way.wigFix"
 done
-curl -s -L "http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/phyloP46way/vertebrate/chrX.phyloP46way.wigFix.gz" | gunzip | hadoop fs -put - /user/ds/genomics/phylop_text/chrX.phyloP46way.wigFix
-curl -s -L "http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/phyloP46way/vertebrate/chrY.phyloP46way.wigFix.gz" | gunzip | hadoop fs -put - /user/ds/genomics/phylop_text/chrY.phyloP46way.wigFix
+curl -s -L "http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/phyloP46way/vertebrate/chrX.phyloP46way.wigFix.gz" | gunzip | adam-submit wigfix2bed | hadoop fs -put - /user/ds/genomics/phylop_text/chrX.phyloP46way.wigFix
+curl -s -L "http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/phyloP46way/vertebrate/chrY.phyloP46way.wigFix.gz" | gunzip | adam-submit wigfix2bed | hadoop fs -put - /user/ds/genomics/phylop_text/chrY.phyloP46way.wigFix
 ```
 
 In a Spark shell, we then convert the PhyloP data from text to Parquet, to
