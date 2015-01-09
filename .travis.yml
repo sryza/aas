@@ -2,3 +2,5 @@ language: java
 jdk:
   - openjdk7
   - oraclejdk8
+git:
+  depth: 2
