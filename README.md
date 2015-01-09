@@ -11,3 +11,5 @@ by [Sandy Ryza](https://github.com/sryza), [Uri Laserson](https://github.com/las
 
 Apache Maven 3.1.1+ and Java 7+ are required to build. Just `mvn package` to compile artifacts
 into respective `target/` directories.
+
+[![Build Status](https://travis-ci.org/sryza/aas.png?branch=master)](https://travis-ci.org/sryza/aas)
