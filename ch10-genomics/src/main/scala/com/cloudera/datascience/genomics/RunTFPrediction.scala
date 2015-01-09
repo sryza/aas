@@ -12,7 +12,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.bdgenomics.adam.io.LocalFileByteAccess
 import org.bdgenomics.adam.models.ReferenceRegion
 import org.bdgenomics.adam.rdd.ADAMContext._
-import org.bdgenomics.adam.rdd.RegionJoin
+import org.bdgenomics.adam.rdd.BroadcastRegionJoin
 import org.bdgenomics.adam.rdd.features.FeaturesContext._
 import org.bdgenomics.adam.util.{TwoBitFile, SequenceUtils}
 import org.bdgenomics.formats.avro.Feature
@@ -141,7 +141,7 @@ object RunTFPrediction {
       }
 
       // join the DNase peak data with conservation data to generate those features
-      val dnaseWithPhylopRDD = RegionJoin.partitionAndJoin(sc, dnaseRDD, phylopRDD)
+      val dnaseWithPhylopRDD = BroadcastRegionJoin.partitionAndJoin(sc, dnaseRDD, phylopRDD)
         // group the conservation values by DNase peak
         .groupBy(x => x._1.getFeatureId)
         // compute conservation stats on each peak
