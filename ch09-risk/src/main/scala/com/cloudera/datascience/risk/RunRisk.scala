@@ -28,11 +28,14 @@ import org.apache.spark.rdd.RDD
 object RunRisk {
   def main(args: Array[String]): Unit = {
     val sc = new SparkContext(new SparkConf().setAppName("VaR"))
-    val (stocks, factors) = readStocksAndFactors("./")
+    val (stockReturns, factorReturns) = readStocksAndFactors("./")
+    plotDistribution(factorReturns(2))
+    plotDistribution(factorReturns(3))
     val numTrials = 10000000
     val parallelism = 1000
     val baseSeed = 1001L
-    val trialReturns = computeTrialReturns(stocks, factors, sc, baseSeed, numTrials, parallelism)
+    val trialReturns = computeTrialReturns(stockReturns, factorReturns, sc, baseSeed, numTrials,
+      parallelism)
     trialReturns.cache()
     val topLosses = trialReturns.takeOrdered(math.max(numTrials / 20, 1))
     println("VaR 5%: " + topLosses.last)
@@ -99,9 +102,9 @@ object RunRisk {
       map(trimToRegion(_, start, end)).
       map(fillInHistory(_, start, end))
 
-    val stocksReturns = stocks.map(twoWeekReturns)
-    val factorsReturns = factors.map(twoWeekReturns)
-    (stocksReturns, factorsReturns)
+    val stockReturns = stocks.map(twoWeekReturns)
+    val factorReturns = factors.map(twoWeekReturns)
+    (stockReturns, factorReturns)
   }
 
   def trialReturns(
@@ -247,6 +250,8 @@ object RunRisk {
     val f = Figure()
     val p = f.subplot(0)
     p += plot(domain, densities)
+    p.xlabel = "Two Week Return ($)"
+    p.ylabel = "Density"
     f
   }
 
@@ -260,6 +265,8 @@ object RunRisk {
     val f = Figure()
     val p = f.subplot(0)
     p += plot(domain, densities)
+    p.xlabel = "Two Week Return ($)"
+    p.ylabel = "Density"
     f
   }
 }
