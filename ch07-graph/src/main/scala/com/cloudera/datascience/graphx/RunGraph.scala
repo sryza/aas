@@ -25,12 +25,11 @@ object RunGraph extends Serializable {
   def main(args: Array[String]): Unit = {
     val sc = new SparkContext(new SparkConf().setAppName("Graph"))
 
-    val medline_raw = loadMedline(sc, "hdfs:///user/ds/medline")
-    val mxml = medline_raw.map(XML.loadString)
-    val medline = mxml.map(majorTopics).cache()
+    val medlineRaw = loadMedline(sc, "hdfs:///user/ds/medline")
+    val mxml: RDD[Elem] = medlineRaw.map(XML.loadString)
+    val medline: RDD[Seq[String]] = mxml.map(majorTopics).cache()
 
-    val N = medline.count()
-    val topics = medline.flatMap(mesh => mesh)
+    val topics: RDD[String] = medline.flatMap(mesh => mesh)
     val topicCounts = topics.countByValue()
     val tcSeq = topicCounts.toSeq
     tcSeq.sortBy(_._2).reverse.take(10).foreach(println)
@@ -50,78 +49,85 @@ object RunGraph extends Serializable {
      val ids = topics.map(hashId).sorted
      Edge(ids(0), ids(1), cnt)
     })
-    val g = Graph(vertices, edges)
-    g.cache()
+    val topicGraph = Graph(vertices, edges)
+    topicGraph.cache()
 
-    val ccg = g.connectedComponents()
-    val componentCounts = ccg.vertices.map(_._2).countByValue()
-    val ccSeq = componentCounts.toSeq
-    ccSeq.sortBy(_._2).reverse.take(10).foreach(println)
+    val connectedComponentGraph = topicGraph.connectedComponents()
+    val componentCounts = sortedConnectedComponents(connectedComponentGraph)
+    componentCounts.size
+    componentCounts.take(10)foreach(println)
 
-    val nameCID = g.vertices.innerJoin(ccg.vertices) {
-      (id, name, cid) => (name, cid)
+    val nameCID = topicGraph.vertices.innerJoin(connectedComponentGraph.vertices) {
+      (topicId, name, componentId) => (name, componentId)
     }
-    val c1 = nameCID.filter(x => x._2._2 == -6468702387578666337L)
+    val c1 = nameCID.filter(x => x._2._2 == componentCounts(1))
     c1.collect().foreach(x => println(x._2._1))
 
     val hiv = topics.filter(_.contains("HIV")).countByValue
     hiv.foreach(println)
 
-    val degrees = g.degrees.cache()
+    val degrees: VertexRDD[Int] = topicGraph.degrees.cache()
     degrees.map(_._2).stats()
-    var namesAndDegrees = degrees.innerJoin(g.vertices) {
-      (id, d, name) => (name, d)
-    }
-    val ord = Ordering.by[(String, Int), Int](_._2)
-    namesAndDegrees.map(_._2).top(10)(ord).foreach(println)
+    topNamesAndDegrees(degrees, topicGraph).foreach(println)
 
-    val vc = topics.map(x => (hashId(x), 1)).reduceByKey(_+_)
-    val bg = Graph(vc, g.edges)
-    val cg = bg.mapTriplets(trip => {
-      chiSq(trip.attr, trip.srcAttr, trip.dstAttr, N)
+    val T = medline.count()
+    val topicCountsRdd = topics.map(x => (hashId(x), 1)).reduceByKey(_+_)
+    val topicCountGraph = Graph(topicCountsRdd, topicGraph.edges)
+    val chiSquaredGraph = topicCountGraph.mapTriplets(triplet => {
+      chiSq(triplet.attr, triplet.srcAttr, triplet.dstAttr, T)
     })
-    cg.edges.map(x => x.attr).stats()
+    chiSquaredGraph.edges.map(x => x.attr).stats()
 
-    val sg = cg.subgraph(trip => trip.attr > 19.5)
+    val interesting = chiSquaredGraph.subgraph(triplet => triplet.attr > 19.5)
 
-    val sgc = sg.connectedComponents()
-    val scc = sgc.vertices.map(_._2).countByValue
-    scc.toSeq.sortBy(_._2).reverse.take(10).foreach(println)
+    val interestingComponentCounts = sortedConnectedComponents(interesting.connectedComponents())
+    interestingComponentCounts.size
+    interestingComponentCounts.take(10).foreach(println)
 
-    val sd = sg.degrees.cache()
-    sd.map(_._2).stats()
+    val interestingDegrees = interesting.degrees.cache()
+    interestingDegrees.map(_._2).stats()
+    topNamesAndDegrees(interestingDegrees, topicGraph).foreach(println)
 
-    val snd = sd.innerJoin(g.vertices) {
-      (id, d, name) => (name, d)
-    }
-    snd.map(_._2).top(10)(ord).foreach(println)
+    val avgCC = avgClusteringCoef(interesting)
 
-    val avgCC = avgClusteringCoef(sg)
-
-    val paths = samplePathLengths(sg)
+    val paths = samplePathLengths(interesting)
     paths.map(_._3).filter(_ > 0).stats()
 
     val hist = paths.map(_._3).countByValue()
     hist.toSeq.sorted.foreach(println)
   }
 
-  def avgClusteringCoef(g: Graph[_, _]): Double = {
-    val tri = g.triangleCount()
-    val den = g.degrees.mapValues(d => d * (d - 1) / 2.0)
-    val cc = tri.vertices.innerJoin(den) { (id, tc, den) =>
-      if (den == 0) { 0 } else { tc / den }
-    }
-    cc.map(_._2).sum() / g.vertices.count()
+  def sortedConnectedComponents(connectedComponents: Graph[VertexId, _]): Seq[(VertexId, Long)] = {
+    val componentCounts = connectedComponents.vertices.map(_._2).countByValue
+    componentCounts.toSeq.sortBy(_._2).reverse
   }
 
-  def samplePathLengths[V, E](sg: Graph[V, E], fraction: Double = 0.02)
+  def topNamesAndDegrees(degrees: VertexRDD[Int], topicGraph: Graph[String, Int])
+    : Array[(String, Int)] = {
+    val namesAndDegrees = degrees.innerJoin(topicGraph.vertices) {
+      (topicId, degree, name) => (name, degree)
+    }
+    val ord = Ordering.by[(String, Int), Int](_._2)
+    namesAndDegrees.map(_._2).top(10)(ord)
+  }
+
+  def avgClusteringCoef(graph: Graph[_, _]): Double = {
+    val triCountGraph = graph.triangleCount()
+    val maxTrisGraph = graph.degrees.mapValues(d => d * (d - 1) / 2.0)
+    val clusterCoefGraph = triCountGraph.vertices.innerJoin(maxTrisGraph) {
+      (vertexId, triCount, maxTris) => if (maxTris == 0) 0 else triCount / maxTris
+    }
+    clusterCoefGraph.map(_._2).sum() / graph.vertices.count()
+  }
+
+  def samplePathLengths[V, E](graph: Graph[V, E], fraction: Double = 0.02)
     : RDD[(VertexId, VertexId, Int)] = {
     val replacement = false
-    val sample = sg.vertices.map(_._1).sample(
+    val sample = graph.vertices.map(v => v._1).sample(
       replacement, fraction, 1729L)
     val ids = sample.collect().toSet
 
-    val mg = sg.mapVertices((id, v) => {
+    val mapGraph = graph.mapVertices((id, v) => {
       if (ids.contains(id)) {
         Map(id -> 0)
       } else {
@@ -130,31 +136,39 @@ object RunGraph extends Serializable {
     })
 
     val start = Map[VertexId, Int]()
-    val res = mg.ops.pregel(start)(update, iterate, addMaps)
+    val res = mapGraph.ops.pregel(start)(update, iterate, mergeMaps)
     res.vertices.flatMap { case (id, m) =>
       m.map { case (k, v) =>
-        if (id < k) (id, k, v) else (k, id, v)
+        if (id < k) {
+          (id, k, v)
+        } else {
+          (k, id, v)
+        }
       }
     }.distinct().cache()
   }
 
-  def addMaps(m1: Map[VertexId, Int], m2: Map[VertexId, Int]): Map[VertexId, Int] = {
-    (m1.keySet ++ m2.keySet).map {
-      k => k -> math.min(
+  def mergeMaps(m1: Map[VertexId, Int], m2: Map[VertexId, Int]): Map[VertexId, Int] = {
+    def minThatExists(k: VertexId): Int = {
+      math.min(
         m1.getOrElse(k, Int.MaxValue),
         m2.getOrElse(k, Int.MaxValue))
+    }
+
+    (m1.keySet ++ m2.keySet).map {
+      k => (k, minThatExists(k))
     }.toMap
   }
 
   def update(id: VertexId, state: Map[VertexId, Int], msg: Map[VertexId, Int])
     : Map[VertexId, Int] = {
-    addMaps(state, msg)
+    mergeMaps(state, msg)
   }
 
   def checkIncrement(a: Map[VertexId, Int], b: Map[VertexId, Int], bid: VertexId)
     : Iterator[(VertexId, Map[VertexId, Int])] = {
     val aplus = a.map { case (v, d) => v -> (d + 1) }
-    if (b != addMaps(aplus, b)) {
+    if (b != mergeMaps(aplus, b)) {
       Iterator((bid, aplus))
     } else {
       Iterator.empty
@@ -171,7 +185,7 @@ object RunGraph extends Serializable {
     conf.set(XmlInputFormat.START_TAG_KEY, "<MedlineCitation ")
     conf.set(XmlInputFormat.END_TAG_KEY, "</MedlineCitation>")
     val in = sc.newAPIHadoopFile(path, classOf[XmlInputFormat],
-        classOf[LongWritable], classOf[Text], conf)
+      classOf[LongWritable], classOf[Text], conf)
     in.map(line => line._2.toString)
   }
 
@@ -185,13 +199,13 @@ object RunGraph extends Serializable {
     Hashing.md5().hashString(str).asLong()
   }
 
-  def chiSq(a: Int, S: Int, A: Int, N: Long): Double = {
-    val F = N - S
-    val B = N - A
-    val b = A - a
-    val c = S - a
-    val d = N - b - c - a
-    val inner = (a * d - b * c) - N / 2.0
-    N * math.pow(inner, 2) / (A * B * S * F)
+  def chiSq(YY: Int, YB: Int, YA: Int, T: Long): Double = {
+    val NB = T - YB
+    val NA = T - YA
+    val YN = YA - YY
+    val NY = YB - YY
+    val NN = T - NY - YN - YY
+    val inner = (YY * NN - YN * NY) - T / 2.0
+    T * math.pow(inner, 2) / (YA * NA * YB * NB)
   }
 }
