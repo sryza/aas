@@ -16,6 +16,7 @@ import breeze.plot._
 
 import com.github.nscala_time.time.Imports._
 
+import org.apache.commons.math3.distribution.ChiSquaredDistribution
 import org.apache.commons.math3.distribution.MultivariateNormalDistribution
 import org.apache.commons.math3.random.MersenneTwister
 import org.apache.commons.math3.stat.correlation.Covariance
@@ -28,17 +29,18 @@ import org.apache.spark.rdd.RDD
 object RunRisk {
   def main(args: Array[String]): Unit = {
     val sc = new SparkContext(new SparkConf().setAppName("VaR"))
-    val (stockReturns, factorReturns) = readStocksAndFactors("./")
-    plotDistribution(factorReturns(2))
-    plotDistribution(factorReturns(3))
+    val (stocksReturns, factorsReturns) = readStocksAndFactors("./")
+    plotDistribution(factorsReturns(2))
+    plotDistribution(factorsReturns(3))
     val numTrials = 10000000
     val parallelism = 1000
     val baseSeed = 1001L
-    val trialReturns = computeTrialReturns(stockReturns, factorReturns, sc, baseSeed, numTrials,
+    val trialReturns = computeTrialReturns(stocksReturns, factorsReturns, sc, baseSeed, numTrials,
       parallelism)
     trialReturns.cache()
     val topLosses = trialReturns.takeOrdered(math.max(numTrials / 20, 1))
     println("VaR 5%: " + topLosses.last)
+    println("Kupiec test p-value: " + kupiecTestPValue(stocksReturns, topLosses.last, 0.05))
     plotDistribution(trialReturns)
   }
 
@@ -68,9 +70,9 @@ object RunRisk {
 
   def computeFactorWeights(
       stocksReturns: Seq[Array[Double]],
-      factorMat: Array[Array[Double]]): Array[Array[Double]] = {
-    val models = stocksReturns.map(linearModel(_, factorMat))
-    val factorWeights = Array.ofDim[Double](stocksReturns.length, factorMat.head.length+1)
+      factorFeatures: Array[Array[Double]]): Array[Array[Double]] = {
+    val models = stocksReturns.map(linearModel(_, factorFeatures))
+    val factorWeights = Array.ofDim[Double](stocksReturns.length, factorFeatures.head.length+1)
     for (s <- 0 until stocksReturns.length) {
       factorWeights(s) = models(s).estimateRegressionParameters()
     }
@@ -269,4 +271,51 @@ object RunRisk {
     p.ylabel = "Density"
     f
   }
+
+  def plotBoth(samples1: RDD[Double], samples2: Array[Double]): Figure = {
+    val stats = samples1.stats()
+    val min = math.min(stats.min, samples2.min)
+    val max = math.max(stats.max, samples2.max)
+    val domain = Range.Double(min, max, (max - min) / 100).toList.toArray
+    val densities1 = KernelDensity.estimate(samples1, domain)
+    val densities2 = KernelDensity.estimate(samples2, domain)
+    val f = Figure()
+    val p = f.subplot(0)
+    p += plot(domain, densities1)
+    p += plot(domain, densities2)
+    p.xlabel = "Two Week Return ($)"
+    p.ylabel = "Density"
+    f
+  }
+
+  def countFailures(stocksReturns: Seq[Array[Double]], valueAtRisk: Double): Int = {
+    var failures = 0
+    for (i <- 0 until stocksReturns(0).size) {
+      val loss = stocksReturns.map(_(i)).sum
+      if (loss < valueAtRisk) {
+        failures += 1
+      }
+    }
+    failures
+  }
+
+  def kupiecTestStatistic(total: Int, failures: Int, confidenceLevel: Double): Double = {
+    val failureRatio = failures.toDouble / total
+    val logNumer = (total - failures) * math.log(1 - confidenceLevel) +
+      failures * math.log(confidenceLevel)
+    val logDenom = (total - failures) * math.log(1 - failureRatio) +
+      failures * math.log(failureRatio)
+    -2 * (logNumer - logDenom)
+  }
+
+  def kupiecTestPValue(
+      stocksReturns: Seq[Array[Double]],
+      valueAtRisk: Double,
+      confidenceLevel: Double): Double = {
+    val failures = countFailures(stocksReturns, valueAtRisk)
+    val total = stocksReturns(0).size
+    val testStatistic = kupiecTestStatistic(total, failures, confidenceLevel)
+    1 - new ChiSquaredDistribution(1.0).cumulativeProbability(testStatistic)
+  }
+
 }
