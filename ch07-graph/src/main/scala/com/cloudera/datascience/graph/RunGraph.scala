@@ -60,7 +60,7 @@ object RunGraph extends Serializable {
     val nameCID = topicGraph.vertices.innerJoin(connectedComponentGraph.vertices) {
       (topicId, name, componentId) => (name, componentId)
     }
-    val c1 = nameCID.filter(x => x._2._2 == componentCounts(1))
+    val c1 = nameCID.filter(x => x._2._2 == componentCounts(1)._2)
     c1.collect().foreach(x => println(x._2._1))
 
     val hiv = topics.filter(_.contains("HIV")).countByValue
