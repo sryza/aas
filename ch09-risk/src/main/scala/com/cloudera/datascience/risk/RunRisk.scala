@@ -35,13 +35,13 @@ object RunRisk {
     val numTrials = 10000000
     val parallelism = 1000
     val baseSeed = 1001L
-    val trialReturns = computeTrialReturns(stocksReturns, factorsReturns, sc, baseSeed, numTrials,
+    val trials = computeTrialReturns(stocksReturns, factorsReturns, sc, baseSeed, numTrials,
       parallelism)
-    trialReturns.cache()
-    val topLosses = trialReturns.takeOrdered(math.max(numTrials / 20, 1))
+    trials.cache()
+    val topLosses = trials.takeOrdered(math.max(numTrials / 20, 1))
     println("VaR 5%: " + topLosses.last)
     println("Kupiec test p-value: " + kupiecTestPValue(stocksReturns, topLosses.last, 0.05))
-    plotDistribution(trialReturns)
+    plotDistribution(trials)
   }
 
   def computeTrialReturns(
@@ -267,22 +267,6 @@ object RunRisk {
     val f = Figure()
     val p = f.subplot(0)
     p += plot(domain, densities)
-    p.xlabel = "Two Week Return ($)"
-    p.ylabel = "Density"
-    f
-  }
-
-  def plotBoth(samples1: RDD[Double], samples2: Array[Double]): Figure = {
-    val stats = samples1.stats()
-    val min = math.min(stats.min, samples2.min)
-    val max = math.max(stats.max, samples2.max)
-    val domain = Range.Double(min, max, (max - min) / 100).toList.toArray
-    val densities1 = KernelDensity.estimate(samples1, domain)
-    val densities2 = KernelDensity.estimate(samples2, domain)
-    val f = Figure()
-    val p = f.subplot(0)
-    p += plot(domain, densities1)
-    p += plot(domain, densities2)
     p.xlabel = "Two Week Return ($)"
     p.ylabel = "Density"
     f
