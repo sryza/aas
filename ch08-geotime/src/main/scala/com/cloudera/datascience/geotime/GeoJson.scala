@@ -31,7 +31,7 @@ case class GeometryCollection(geometries: Array[RichGeometry])
 object GeoJsonProtocol extends DefaultJsonProtocol {
   implicit object RichGeometryJsonFormat extends RootJsonFormat[RichGeometry] {
     def write(g: RichGeometry) = {
-      GeometryEngine.geometryToGeoJson(g.csr, g.geometry).parseJson
+      GeometryEngine.geometryToGeoJson(g.spatialReference, g.geometry).parseJson
     }
     def read(value: JsValue) = {
       val mg = GeometryEngine.geometryFromGeoJson(value.compactPrint, 0, Geometry.Type.Unknown)

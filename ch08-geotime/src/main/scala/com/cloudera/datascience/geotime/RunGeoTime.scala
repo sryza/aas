@@ -42,14 +42,14 @@ object RunGeoTime extends Serializable {
     val taxiParsed = taxiRaw.map(safeParse)
     taxiParsed.cache()
 
-    val taxiBad = taxiParsed.collect {
+    val taxiBad = taxiParsed.collect({
       case t if t.isRight => t.right.get
-    }
+    })
     taxiBad.collect().foreach(println)
 
-    val taxiGood = taxiParsed.collect {
+    val taxiGood = taxiParsed.collect({
       case t if t.isLeft => t.left.get
-    }
+    })
     taxiGood.cache()
 
     def hours(trip: Trip): Long = {
@@ -77,7 +77,7 @@ object RunGeoTime extends Serializable {
     val bFeatures = sc.broadcast(areaSortedFeatures)
 
     def borough(trip: Trip): Option[String] = {
-      val feature = bFeatures.value.find(f => {
+      val feature: Option[Feature] = bFeatures.value.find(f => {
         f.geometry.contains(trip.dropoffLoc)
       })
       feature.map(f => {
@@ -108,11 +108,12 @@ object RunGeoTime extends Serializable {
       (b, d)
     }
 
-    val boroughDurations = sessions.values.flatMap(trips => {
-      val iter = trips.sliding(2)
-      val viter = iter.filter(_.size == 2)
-      viter.map(p => boroughDuration(p(0), p(1)))
-    }).cache()
+    val boroughDurations: RDD[(Option[String], Duration)] =
+      sessions.values.flatMap(trips => {
+        val iter: Iterator[Seq[Trip]] = trips.sliding(2)
+        val viter = iter.filter(_.size == 2)
+        viter.map(p => boroughDuration(p(0), p(1)))
+      }).cache()
 
     boroughDurations.values.map(_.getStandardHours).countByValue().toList.sorted.foreach(println)
 
