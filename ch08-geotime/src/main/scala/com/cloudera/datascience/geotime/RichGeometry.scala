@@ -15,40 +15,40 @@ import scala.language.implicitConversions
  * SpatialReference.
  *
  * @param geometry the geometry object
- * @param csr optional spatial reference; if not specified, uses WKID 4326 a.k.a. WGS84, the
- *                         standard coordinate frame for Earth.
+ * @param spatialReference optional spatial reference; if not specified, uses WKID 4326 a.k.a.
+ *                         WGS84, the standard coordinate frame for Earth.
  */
 class RichGeometry(val geometry: Geometry,
-    val csr: SpatialReference = SpatialReference.create(4326)) extends Serializable {
+    val spatialReference: SpatialReference = SpatialReference.create(4326)) extends Serializable {
 
   def area2D(): Double = geometry.calculateArea2D()
 
   def distance(other: Geometry): Double = {
-    GeometryEngine.distance(geometry, other, csr)
+    GeometryEngine.distance(geometry, other, spatialReference)
   }
 
   def contains(other: Geometry): Boolean = {
-    GeometryEngine.contains(geometry, other, csr)
+    GeometryEngine.contains(geometry, other, spatialReference)
   }
 
   def within(other: Geometry): Boolean = {
-    GeometryEngine.within(geometry, other, csr)
+    GeometryEngine.within(geometry, other, spatialReference)
   }
 
   def overlaps(other: Geometry): Boolean = {
-    GeometryEngine.overlaps(geometry, other, csr)
+    GeometryEngine.overlaps(geometry, other, spatialReference)
   }
 
   def touches(other: Geometry): Boolean = {
-    GeometryEngine.touches(geometry, other, csr)
+    GeometryEngine.touches(geometry, other, spatialReference)
   }
 
   def crosses(other: Geometry): Boolean = {
-    GeometryEngine.crosses(geometry, other, csr)
+    GeometryEngine.crosses(geometry, other, spatialReference)
   }
 
   def disjoint(other: Geometry): Boolean = {
-    GeometryEngine.disjoint(geometry, other, csr)
+    GeometryEngine.disjoint(geometry, other, spatialReference)
   }
 }
 
