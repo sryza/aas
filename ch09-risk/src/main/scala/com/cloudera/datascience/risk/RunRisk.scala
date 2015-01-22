@@ -38,9 +38,11 @@ object RunRisk {
     val trials = computeTrialReturns(stocksReturns, factorsReturns, sc, baseSeed, numTrials,
       parallelism)
     trials.cache()
-    val topLosses = trials.takeOrdered(math.max(numTrials / 20, 1))
-    println("VaR 5%: " + topLosses.last)
-    println("Kupiec test p-value: " + kupiecTestPValue(stocksReturns, topLosses.last, 0.05))
+    val valueAtRisk = fivePercentVaR(trials)
+    println("VaR 5%: " + valueAtRisk)
+    val confidenceInterval = bootstrappedConfidenceInterval(trials, fivePercentVaR, 100, .05)
+    println("Confidence interval: " + confidenceInterval)
+    println("Kupiec test p-value: " + kupiecTestPValue(stocksReturns, valueAtRisk, 0.05))
     plotDistribution(trials)
   }
 
@@ -272,6 +274,25 @@ object RunRisk {
     f
   }
 
+  def fivePercentVaR(trials: RDD[Double]): Double = {
+    val topLosses = trials.takeOrdered(math.max(trials.count().toInt / 20, 1))
+    topLosses.last
+  }
+
+  def bootstrappedConfidenceInterval(
+      trials: RDD[Double],
+      computeStatistic: RDD[Double] => Double,
+      numResamples: Int,
+      pValue: Double): (Double, Double) = {
+    val stats = (0 until numResamples).map { i =>
+      val resample = trials.sample(true, 1.0)
+      computeStatistic(resample)
+    }.sorted
+    val lowerIndex = (numResamples * pValue / 2 - 1).toInt
+    val upperIndex = math.ceil(numResamples * (1 - pValue / 2)).toInt
+    (stats(lowerIndex), stats(upperIndex))
+  }
+
   def countFailures(stocksReturns: Seq[Array[Double]], valueAtRisk: Double): Int = {
     var failures = 0
     for (i <- 0 until stocksReturns(0).size) {
@@ -285,9 +306,9 @@ object RunRisk {
 
   def kupiecTestStatistic(total: Int, failures: Int, confidenceLevel: Double): Double = {
     val failureRatio = failures.toDouble / total
-    val logNumer = (total - failures) * math.log(1 - confidenceLevel) +
+    val logNumer = (total - failures) * math.log1p(-confidenceLevel) +
       failures * math.log(confidenceLevel)
-    val logDenom = (total - failures) * math.log(1 - failureRatio) +
+    val logDenom = (total - failures) * math.log1p(-failureRatio) +
       failures * math.log(failureRatio)
     -2 * (logNumer - logDenom)
   }
