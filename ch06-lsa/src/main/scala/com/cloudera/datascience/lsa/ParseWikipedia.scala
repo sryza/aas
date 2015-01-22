@@ -45,7 +45,7 @@ object ParseWikipedia {
     })
 
     docTermFreqs.cache()
-    val docIds = docTermFreqs.map(_._1).zipWithUniqueId.map(_.swap).collectAsMap()
+    val docIds = docTermFreqs.map(_._1).zipWithUniqueId().map(_.swap).collectAsMap()
 
     val docFreqs = documentFrequenciesDistributed(docTermFreqs.map(_._2), numTerms)
     println("Number of terms: " + docFreqs.size)

@@ -95,7 +95,7 @@ object RunRecommender {
 
     trainData.unpersist()
 
-    println(model.userFeatures.mapValues(_.mkString(", ")).first)
+    println(model.userFeatures.mapValues(_.mkString(", ")).first())
 
     val userID = 2093760
     val recommendations = model.recommendProducts(userID, 5)
