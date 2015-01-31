@@ -9,10 +9,7 @@ by [Sandy Ryza](https://github.com/sryza), [Uri Laserson](https://github.com/las
 
 ### Build
 
-Apache Maven 3.1.1+ and Java 7+ are required to build. Just `mvn package` to compile artifacts
-into respective `target/` directories.
-
-[![Build Status](https://travis-ci.org/sryza/aas.png?branch=master)](https://travis-ci.org/sryza/aas)
+[Apache Maven](http://maven.apache.org/) 3.1.1+ and Java 7+ are required to build. From the root level of the project, run `mvn package` to compile artifacts into `target/` subdirectories beneath each chapter's directory.
 
 ### Data Sets
 
@@ -26,3 +23,5 @@ into respective `target/` directories.
 - Chapter 9: (see `ch09-risk/data/download-all-symbols.sh` script)
 - Chapter 10: ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00103/alignment/HG00103.mapped.ILLUMINA.bwa.GBR.low_coverage.20120522.bam
 - Chapter 11: https://github.com/thunder-project/thunder/tree/master/python/thunder/utils/data/fish/tif-stack
+
+[![Build Status](https://travis-ci.org/sryza/aas.png?branch=master)](https://travis-ci.org/sryza/aas)
