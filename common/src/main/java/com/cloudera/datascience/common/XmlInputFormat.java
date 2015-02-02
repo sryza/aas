@@ -18,9 +18,8 @@
 package com.cloudera.datascience.common;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Closeables;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -76,8 +75,8 @@ public class XmlInputFormat extends TextInputFormat {
     private Text currentValue;
 
     public XmlRecordReader(FileSplit split, Configuration conf) throws IOException {
-      startTag = conf.get(START_TAG_KEY).getBytes(Charsets.UTF_8);
-      endTag = conf.get(END_TAG_KEY).getBytes(Charsets.UTF_8);
+      startTag = conf.get(START_TAG_KEY).getBytes(StandardCharsets.UTF_8);
+      endTag = conf.get(END_TAG_KEY).getBytes(StandardCharsets.UTF_8);
 
       // open the file and seek to the start of the split
       start = split.getStart();
@@ -106,7 +105,7 @@ public class XmlInputFormat extends TextInputFormat {
 
     @Override
     public void close() throws IOException {
-      Closeables.close(fsin, true);
+      fsin.close();
     }
 
     @Override
