@@ -197,6 +197,9 @@ object RunGraph extends Serializable {
   }
 
   def hashId(str: String): Long = {
+    // This is effectively the same implementation as in Guava's Hashing, but 'inlined'
+    // to avoid a dependency on Guava just for this. It creates a long from the first 8 bytes
+    // of the (16 byte) MD5 hash, with first byte as least-significant byte in the long.
     val bytes = MessageDigest.getInstance("MD5").digest(str.getBytes(StandardCharsets.UTF_8))
     (bytes(0) & 0xFFL) |
     ((bytes(1) & 0xFFL) << 8) |
