@@ -34,18 +34,25 @@
 
   <properties>
     <adam.version>0.15.1-SNAPSHOT</adam.version>
+    <bdg.formats.version>0.4.0</bdg.formats.version>
+    <bdg.utils.parquet.version>0.1.1</bdg.utils.parquet.version>
   </properties>
 
   <dependencies>
     <dependency>
       <groupId>org.bdgenomics.bdg-formats</groupId>
       <artifactId>bdg-formats</artifactId>
-      <version>0.4.0</version>
+      <version>${bdg.formats.version}</version>
     </dependency>
     <dependency>
       <groupId>org.bdgenomics.adam</groupId>
       <artifactId>adam-core</artifactId>
       <version>${adam.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.bdgenomics.bdg-utils</groupId>
+      <artifactId>bdg-utils-parquet</artifactId>
+      <version>${bdg.utils.parquet.version}</version>
     </dependency>
   </dependencies>
 

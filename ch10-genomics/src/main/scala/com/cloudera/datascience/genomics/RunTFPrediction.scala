@@ -9,7 +9,7 @@ package com.cloudera.datascience.genomics
 import java.io.File
 
 import org.apache.spark.{SparkConf, SparkContext}
-import org.bdgenomics.adam.io.LocalFileByteAccess
+import org.bdgenomics.utils.parquet.io.LocalFileByteAccess
 import org.bdgenomics.adam.models.ReferenceRegion
 import org.bdgenomics.adam.rdd.ADAMContext._
 import org.bdgenomics.adam.rdd.BroadcastRegionJoin
