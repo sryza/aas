@@ -128,7 +128,7 @@ parallelized across the cluster):
 
 Convert each file to parquet
 
-    export SPARK_JAR_PATH=hdfs:///user/laserson/tmp/spark-assembly-1.2.0-SNAPSHOT-hadoop2.3.0.jar
+    export SPARK_JAR_PATH=hdfs:///user/laserson/tmp/spark-assembly-1.2.1-hadoop2.4.0.jar
     adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr1.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr1
     adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr2.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr2
     adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr3.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr3
@@ -158,7 +158,7 @@ Convert to ADAM
 
     export HADOOP_CONF_DIR=/etc/hadoop/conf
     export SPARK_HOME=/home/laserson/spark
-    export SPARK_JAR_PATH=hdfs:///user/laserson/tmp/spark-assembly-1.2.0-SNAPSHOT-hadoop2.3.0.jar
+    export SPARK_JAR_PATH=hdfs:///user/laserson/tmp/spark-assembly-1.2.1-hadoop2.4.0.jar
     adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 6 --executor-cores 12 --executor-memory 4G vcf2adam -onlyvariants /user/ds/genomics/exac/vcf/ExAC.r0.2.sites.vep.vcf /user/ds/genomics/exac/parquet
 
 
@@ -169,7 +169,7 @@ Convert to ADAM
 
     adam/bin/adam-submit \
     transform \
-    --conf spark.yarn.jar=hdfs:///user/laserson/tmp/spark-assembly-1.2.0-SNAPSHOT-hadoop2.3.0.jar \
+    --conf spark.yarn.jar=hdfs:///user/laserson/tmp/spark-assembly-1.2.1-hadoop2.4.0.jar \
     --master yarn-cluster \
     --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G
     /user/ds/genomics/HG00103.mapped.ILLUMINA.bwa.GBR.low_coverage.20120522.bam \
