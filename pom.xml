@@ -118,8 +118,8 @@
       </dependency>
       <dependency>
         <groupId>com.github.nscala-time</groupId>
-        <artifactId>nscala-time_2.9.1</artifactId>
-        <version>1.4.0</version>
+        <artifactId>nscala-time_2.10</artifactId>
+        <version>1.8.0</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

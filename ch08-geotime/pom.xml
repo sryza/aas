@@ -25,7 +25,7 @@
     </dependency>
     <dependency>
       <groupId>com.github.nscala-time</groupId>
-      <artifactId>nscala-time_2.9.1</artifactId>
+      <artifactId>nscala-time_2.10</artifactId>
     </dependency>
     <dependency>
       <groupId>com.esri.geometry</groupId>
