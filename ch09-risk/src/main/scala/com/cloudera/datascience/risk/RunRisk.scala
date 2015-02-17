@@ -39,9 +39,13 @@ object RunRisk {
       parallelism)
     trials.cache()
     val valueAtRisk = fivePercentVaR(trials)
+    val conditionalValueAtRisk = fivePercentCVaR(trials)
     println("VaR 5%: " + valueAtRisk)
-    val confidenceInterval = bootstrappedConfidenceInterval(trials, fivePercentVaR, 100, .05)
-    println("Confidence interval: " + confidenceInterval)
+    println("CVaR 5%: " + conditionalValueAtRisk)
+    val varConfidenceInterval = bootstrappedConfidenceInterval(trials, fivePercentVaR, 100, .05)
+    val cvarConfidenceInterval = bootstrappedConfidenceInterval(trials, fivePercentCVaR, 100, .05)
+    println("VaR confidence interval: " + varConfidenceInterval)
+    println("CVaR confidence interval: " + cvarConfidenceInterval)
     println("Kupiec test p-value: " + kupiecTestPValue(stocksReturns, valueAtRisk, 0.05))
     plotDistribution(trials)
   }
@@ -277,6 +281,11 @@ object RunRisk {
   def fivePercentVaR(trials: RDD[Double]): Double = {
     val topLosses = trials.takeOrdered(math.max(trials.count().toInt / 20, 1))
     topLosses.last
+  }
+
+  def fivePercentCVaR(trials: RDD[Double]): Double = {
+    val topLosses = trials.takeOrdered(math.max(trials.count().toInt / 20, 1))
+    topLosses.sum / topLosses.length
   }
 
   def bootstrappedConfidenceInterval(
