@@ -11,6 +11,8 @@ by [Sandy Ryza](https://github.com/sryza), [Uri Laserson](https://github.com/las
 
 [Apache Maven](http://maven.apache.org/) 3.1.1+ and Java 7+ are required to build. From the root level of the project, run `mvn package` to compile artifacts into `target/` subdirectories beneath each chapter's directory.
 
+Note: At the moment, Chapter 10 (Genomics) depends on SNAPSHOT releases of some Big Data Genomics packages, which occasionally cause the build to break.  As a workaround, simply comment out `<module>ch10-genomics</module>` in the `pom.xml` file, and please file an issue. This is issue is only temporary.
+
 ### Data Sets
 
 - Chapter 2: https://archive.ics.uci.edu/ml/machine-learning-databases/00210/

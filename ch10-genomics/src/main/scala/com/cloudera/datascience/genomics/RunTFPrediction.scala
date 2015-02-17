@@ -13,7 +13,6 @@ import org.bdgenomics.utils.parquet.io.LocalFileByteAccess
 import org.bdgenomics.adam.models.ReferenceRegion
 import org.bdgenomics.adam.rdd.ADAMContext._
 import org.bdgenomics.adam.rdd.BroadcastRegionJoin
-import org.bdgenomics.adam.rdd.features.FeaturesContext._
 import org.bdgenomics.adam.util.{TwoBitFile, SequenceUtils}
 import org.bdgenomics.formats.avro.Feature
 import org.bdgenomics.adam.rich.ReferenceMappingContext._
@@ -34,7 +33,7 @@ object RunTFPrediction {
       // clean up a few irregularities in the phylop data
       .filter(f => f.getStart <= f.getEnd)
 
-    val tssRDD = sc.adamGTFFeatureLoad("/user/ds/genomics/gencode.v18.annotation.gtf")
+    val tssRDD = sc.loadFeatures("/user/ds/genomics/gencode.v18.annotation.gtf")
       .filter(_.getFeatureType == "transcript")
       .map(f => (f.getContig.getContigName, f.getStart))
 
@@ -114,9 +113,9 @@ object RunTFPrediction {
     val cellLines = Vector("GM12878", "K562", "BJ", "HEK293", "H54", "HepG2")
 
     val dataByCellLine = cellLines.map(cellLine => {
-      val dnaseRDD = sc.adamNarrowPeakFeatureLoad(
+      val dnaseRDD = sc.loadFeatures(
         s"/user/ds/genomics/dnase/$cellLine.DNase.narrowPeak")
-      val chipseqRDD = sc.adamNarrowPeakFeatureLoad(
+      val chipseqRDD = sc.loadFeatures(
         s"/user/ds/genomics/chip-seq/$cellLine.ChIP-seq.CTCF.narrowPeak")
 
       // generate the fn for labeling the data points
