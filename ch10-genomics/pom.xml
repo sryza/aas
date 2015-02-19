@@ -33,7 +33,7 @@
   </repositories>
 
   <properties>
-    <adam.version>0.15.1-SNAPSHOT</adam.version>
+    <adam.version>0.16.0</adam.version>
     <bdg.formats.version>0.4.0</bdg.formats.version>
     <bdg.utils.parquet.version>0.1.1</bdg.utils.parquet.version>
   </properties>
