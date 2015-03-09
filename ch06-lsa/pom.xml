@@ -39,6 +39,12 @@
       <artifactId>cloud9</artifactId>
       <version>1.5.0</version>
     </dependency>
+    <!-- This is only here for edu.umd:cloud9 -->
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>14.0.1</version>
+    </dependency>
     <dependency>
       <groupId>info.bliki.wiki</groupId>
       <artifactId>bliki-core</artifactId>
