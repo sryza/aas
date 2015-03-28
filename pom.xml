@@ -118,7 +118,7 @@
       </dependency>
       <dependency>
         <groupId>com.github.nscala-time</groupId>
-        <artifactId>nscala-time_2.10</artifactId>
+        <artifactId>nscala-time_${scala.minor.version}</artifactId>
         <version>1.8.0</version>
       </dependency>
     </dependencies>
@@ -269,7 +269,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.2</version>
+          <version>3.3</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -356,5 +356,15 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>scala-2.11</id>
+      <properties>
+        <scala.minor.version>2.11</scala.minor.version>
+        <scala.complete.version>${scala.minor.version}.6</scala.complete.version>
+      </properties>
+    </profile>
+  </profiles>
 
 </project>

@@ -25,12 +25,12 @@
     </dependency>
     <dependency>
       <groupId>com.github.nscala-time</groupId>
-      <artifactId>nscala-time_2.10</artifactId>
+      <artifactId>nscala-time_${scala.minor.version}</artifactId>
     </dependency>
     <dependency>
       <groupId>com.esri.geometry</groupId>
       <artifactId>esri-geometry-api</artifactId>
-      <version>1.2</version>
+      <version>1.2.1</version>
     </dependency>
     <dependency>
       <groupId>io.spray</groupId>
