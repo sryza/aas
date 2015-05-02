@@ -168,7 +168,7 @@
   </scm>
 
   <prerequisites>
-    <maven>3.1.1</maven>
+    <maven>${maven.version.min}</maven>
   </prerequisites>
 
   <modules>
@@ -189,9 +189,10 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <hadoop.version>2.6.0</hadoop.version>
     <java.version>1.7</java.version>
+    <maven.version.min>3.1.1</maven.version.min>
     <scala.minor.version>2.10</scala.minor.version>
     <scala.complete.version>${scala.minor.version}.4</scala.complete.version>
-    <spark.version>1.2.1</spark.version>
+    <spark.version>1.2.2</spark.version>
   </properties>
 
   <dependencies>
@@ -226,7 +227,7 @@
                 <rules>
                   <dependencyConvergence />
                   <requireMavenVersion>
-                    <version>3.1.1</version>
+                    <version>${maven.version.min}</version>
                   </requireMavenVersion>
                   <requireJavaVersion>
                     <version>${java.version}</version>
@@ -300,7 +301,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-assembly-plugin</artifactId>
-          <version>2.5.3</version>
+          <version>2.5.4</version>
           <configuration>
             <descriptorRefs>
               <descriptorRef>jar-with-dependencies</descriptorRef>
@@ -358,6 +359,24 @@
   </build>
 
   <profiles>
+    <profile>
+      <id>spark-1.3</id>
+      <properties>
+        <spark.version>1.3.1</spark.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>spark-1.4</id>
+      <properties>
+        <spark.version>1.4.0</spark.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>java8</id>
+      <properties>
+        <java.version>1.8</java.version>
+      </properties>
+    </profile>
     <profile>
       <id>scala-2.11</id>
       <properties>
