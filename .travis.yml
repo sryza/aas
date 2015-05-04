@@ -12,3 +12,7 @@ matrix:
    # Covers Scala 2.11
    - jdk: oraclejdk7
      env: SCALA=-Pscala-2.11
+cache:
+  directories:
+    - $HOME/.m2
+..
