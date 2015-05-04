@@ -15,4 +15,3 @@ matrix:
 cache:
   directories:
     - $HOME/.m2
-..
