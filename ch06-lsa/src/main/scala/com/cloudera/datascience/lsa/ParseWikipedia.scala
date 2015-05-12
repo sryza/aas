@@ -56,21 +56,21 @@ object ParseWikipedia {
     val idfs = inverseDocumentFrequencies(docFreqs, numDocs)
 
     // Maps terms to their indices in the vector
-    val termIds = idfs.keys.zipWithIndex.toMap
+    val termToId = idfs.keys.zipWithIndex.toMap
 
     val bIdfs = sc.broadcast(idfs).value
-    val bTermIds = sc.broadcast(termIds).value
+    val bTermToId = sc.broadcast(termToId).value
 
     val vecs = docTermFreqs.map(_._2).map(termFreqs => {
       val docTotalTerms = termFreqs.values().sum
       val termScores = termFreqs.filter {
-        case (term, freq) => bTermIds.containsKey(term)
+        case (term, freq) => bTermToId.containsKey(term)
       }.map{
-        case (term, freq) => (bTermIds(term), bIdfs(term) * termFreqs(term) / docTotalTerms)
+        case (term, freq) => (bTermToId(term), bIdfs(term) * termFreqs(term) / docTotalTerms)
       }.toSeq
-      Vectors.sparse(bTermIds.size, termScores)
+      Vectors.sparse(bTermToId.size, termScores)
     })
-    (vecs, termIds.map(_.swap), docIds, idfs)
+    (vecs, termToId.map(_.swap), docIds, idfs)
   }
 
   def documentFrequencies(docTermFreqs: RDD[HashMap[String, Int]]): HashMap[String, Int] = {
