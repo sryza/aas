@@ -217,7 +217,7 @@ object RunGraph extends Serializable {
     val YN = YA - YY
     val NY = YB - YY
     val NN = T - NY - YN - YY
-    val inner = (YY * NN - YN * NY) - T / 2.0
+    val inner = math.abs(YY * NN - YN * NY) - T / 2.0
     T * math.pow(inner, 2) / (YA * NA * YB * NB)
   }
 }
