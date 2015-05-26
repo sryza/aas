@@ -225,7 +225,7 @@
               <id>enforce</id>
               <configuration>
                 <rules>
-                  <dependencyConvergence />
+                  <requireModuleConvergence/>
                   <requireMavenVersion>
                     <version>${maven.version.min}</version>
                   </requireMavenVersion>
@@ -239,6 +239,51 @@
               </goals>
             </execution>
           </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.rat</groupId>
+          <artifactId>apache-rat-plugin</artifactId>
+          <version>0.11</version>
+          <configuration>
+            <excludes>
+              <exclude>**/*.iml</exclude>
+              <exclude>**/*.md</exclude>
+              <exclude>**/*.txt</exclude>
+              <exclude>**/*.geojson</exclude>
+              <exclude>**/target/**</exclude>
+              <exclude>**/dependency-reduced-pom.xml</exclude>
+              <exclude>.travis.yml</exclude>
+            </excludes>
+            <licenses>
+              <license implementation="org.apache.rat.analysis.license.SimplePatternBasedLicense">
+                <patterns>
+                  <pattern>Copyright 2015 Sanford Ryza, Uri Laserson, Sean Owen and Joshua Wills</pattern>
+                </patterns>
+              </license>
+            </licenses>
+          </configuration>
+          <executions>
+            <execution>
+              <phase>verify</phase>
+              <goals>
+                <goal>check</goal>
+              </goals>
+            </execution>
+          </executions>
+          <!-- workaround for Xerces warnings -->
+          <dependencies>
+            <dependency>
+              <groupId>org.apache.maven.doxia</groupId>
+              <artifactId>doxia-core</artifactId>
+              <version>1.6</version>
+              <exclusions>
+                <exclusion>
+                  <groupId>xerces</groupId>
+                  <artifactId>xercesImpl</artifactId>
+                </exclusion>
+              </exclusions>
+            </dependency>
+          </dependencies>
         </plugin>
         <plugin>
           <groupId>net.alchim31.maven</groupId>
@@ -351,6 +396,14 @@
       </plugins>
     </pluginManagement>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.rat</groupId>
+        <artifactId>apache-rat-plugin</artifactId>
+      </plugin>
       <plugin>
         <groupId>net.alchim31.maven</groupId>
         <artifactId>scala-maven-plugin</artifactId>

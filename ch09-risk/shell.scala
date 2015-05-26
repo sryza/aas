@@ -1,3 +1,9 @@
+/*
+ * Copyright 2015 Sanford Ryza, Uri Laserson, Sean Owen and Joshua Wills
+ *
+ * See LICENSE file for further information.
+ */
+
 val prefix = "/home/sandy/datascience/book/risk/"
 val prefix = ""
 

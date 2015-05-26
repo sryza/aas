@@ -1,3 +1,9 @@
+# coding=utf-8
+
+# Copyright 2015 Sanford Ryza, Uri Laserson, Sean Owen and Joshua Wills
+#
+# See LICENSE file for further information.
+
 # CTCF PWM from suppl. to  http://dx.doi.org/10.1016/j.cell.2012.12.009
 
 import numpy as np

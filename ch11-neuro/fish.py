@@ -1,3 +1,9 @@
+# coding=utf-8
+
+# Copyright 2015 Sanford Ryza, Uri Laserson, Sean Owen and Joshua Wills
+#
+# See LICENSE file for further information.
+
 # this code assumes you are working from an interactive Thunder (PySpark) shell
 
 import matplotlib.pyplot as plt
