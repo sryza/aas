@@ -189,7 +189,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <hadoop.version>2.6.0</hadoop.version>
     <java.version>1.7</java.version>
-    <maven.version.min>3.1.1</maven.version.min>
+    <maven.version.min>3.0.5</maven.version.min>
     <scala.minor.version>2.10</scala.minor.version>
     <scala.complete.version>${scala.minor.version}.4</scala.complete.version>
     <spark.version>1.2.2</spark.version>
