@@ -34,6 +34,23 @@
     <spark.version>1.2.1</spark.version>
   </properties>
 
+  <profiles>
+    <profile>
+      <id>cdh</id>
+      <properties>
+        <spark.version>1.2.0-cdh5.3.1</spark.version>
+      </properties>
+    </profile>
+  </profiles>
+
+  <repositories>
+    <repository>
+      <id>cloudera-repos</id>
+      <name>Cloudera Repos</name>
+      <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
+    </repository>
+  </repositories>
+
   <build>
     <plugins>
       <plugin>
