@@ -137,10 +137,11 @@ object RunKMeans {
     val n = dataAsArray.count()
     val sums = dataAsArray.reduce(
       (a, b) => a.zip(b).map(t => t._1 + t._2))
-    val sumSquares = dataAsArray.fold(
+    val sumSquares = dataAsArray.aggregate(
         new Array[Double](numCols)
       )(
-        (a, b) => a.zip(b).map(t => t._1 + t._2 * t._2)
+        (a, b) => a.zip(b).map(t => t._1 + t._2 * t._2),
+        (a, b) => a.zip(b).map(t => t._1 + t._2)
       )
     val stdevs = sumSquares.zip(sums).map {
       case (sumSq, sum) => math.sqrt(n * sumSq - sum * sum) / n
