@@ -62,9 +62,9 @@ object ParseWikipedia {
     val bTermToId = sc.broadcast(termToId).value
 
     val vecs = docTermFreqs.map(_._2).map(termFreqs => {
-      val docTotalTerms = termFreqs.values().sum
+      val docTotalTerms = termFreqs.values.sum
       val termScores = termFreqs.filter {
-        case (term, freq) => bTermToId.containsKey(term)
+        case (term, freq) => bTermToId.contains(term)
       }.map{
         case (term, freq) => (bTermToId(term), bIdfs(term) * termFreqs(term) / docTotalTerms)
       }.toSeq
