@@ -102,7 +102,7 @@ object RunRisk {
     val factors1 = Array("crudeoil.tsv", "us30yeartreasurybonds.tsv").
       map(x => new File(factorsPrefix + x)).
       map(readInvestingDotComHistory)
-    val factors2 = Array("SNP.csv", "NDX.csv").
+    val factors2 = Array("^GSPC.csv", "^IXIC.csv").
       map(x => new File(factorsPrefix + x)).
       map(readYahooHistory)
 
@@ -142,7 +142,7 @@ object RunRisk {
     for (instrument <- instruments) {
       totalReturn += instrumentTrialReturn(instrument, trial)
     }
-    totalReturn
+    totalReturn / instruments.size
   }
 
   /**
@@ -159,7 +159,11 @@ object RunRisk {
   }
 
   def twoWeekReturns(history: Array[(DateTime, Double)]): Array[Double] = {
-    history.sliding(10).map(window => window.last._2 - window.head._2).toArray
+    history.sliding(10).map { window =>
+      val next = window.last._2
+      val prev = window.head._2
+      (next - prev) / prev
+    }.toArray
   }
 
   def linearModel(instrument: Array[Double], factorMatrix: Array[Array[Double]])
