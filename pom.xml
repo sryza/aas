@@ -8,7 +8,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.cloudera.datascience</groupId>
   <artifactId>spark-book-parent</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.1</version>
   <packaging>pom</packaging>
   <name>Advanced Analytics with Spark</name>
 
@@ -351,6 +351,7 @@
             <descriptorRefs>
               <descriptorRef>jar-with-dependencies</descriptorRef>
             </descriptorRefs>
+            <recompressZippedFiles>false</recompressZippedFiles>
           </configuration>
           <executions>
             <execution>
