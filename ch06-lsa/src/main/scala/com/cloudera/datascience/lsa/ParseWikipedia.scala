@@ -25,7 +25,7 @@ import org.apache.spark.SparkContext._
 import org.apache.spark.mllib.linalg.{Vector, Vectors}
 import org.apache.spark.rdd.RDD
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
@@ -144,7 +144,8 @@ object ParseWikipedia {
     pipeline.annotate(doc)
     val lemmas = new ArrayBuffer[String]()
     val sentences = doc.get(classOf[SentencesAnnotation])
-    for (sentence <- sentences; token <- sentence.get(classOf[TokensAnnotation])) {
+    for (sentence <- sentences.asScala;
+         token <- sentence.get(classOf[TokensAnnotation]).asScala) {
       val lemma = token.get(classOf[LemmaAnnotation])
       if (lemma.length > 2 && !stopWords.contains(lemma) && isOnlyLetters(lemma)) {
         lemmas += lemma.toLowerCase
