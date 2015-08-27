@@ -6,8 +6,6 @@
 
 package com.cloudera.datascience.intro
 
-import java.lang.Double.isNaN
-
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd.RDD
@@ -46,7 +44,7 @@ object RunIntro extends Serializable {
     matchCountsSeq.sortBy(_._2).reverse.foreach(println)
 
     val stats = (0 until 9).map(i => {
-      parsed.map(md => md.scores(i)).filter(!isNaN(_)).stats()
+      parsed.map(_.scores(i)).filter(!_.isNaN).stats()
     })
     stats.foreach(println)
 
@@ -95,7 +93,7 @@ class NAStatCounter extends Serializable {
   var missing: Long = 0
 
   def add(x: Double): NAStatCounter = {
-    if (java.lang.Double.isNaN(x)) {
+    if (x.isNaN) {
       missing += 1
     } else {
       stats.merge(x)
