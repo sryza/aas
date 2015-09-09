@@ -4,7 +4,7 @@ install: mvn ${SPARK} ${JAVA} ${SCALA} -Dmaven.javadoc.skip=true -DskipTests=tru
 script: mvn ${SPARK} ${JAVA} ${SCALA} -Dmaven.javadoc.skip=true -q -B verify
 env:
   global:
-    - MAVEN_OPTS=-Xmx2g
+    - MAVEN_OPTS=-Xmx3g
 matrix:
  include:
    # Covers Java 7, Oracle JDK, and Spark 1.2.x
