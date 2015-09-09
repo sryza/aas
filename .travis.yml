@@ -7,17 +7,20 @@ env:
     - MAVEN_OPTS=-Xmx2g
 matrix:
  include:
-   # Covers Java 7, Open JDK, and Spark 1.2.x
-   - jdk: openjdk7
-   # Covers Java 8, Oracle JDK, and Spark 1.3.x
-   - jdk: oraclejdk8
-     env: SPARK=-Pspark-1.3 JAVA=-Pjava8
-   # Covers Scala 2.11
+   # Covers Java 7, Oracle JDK, and Spark 1.2.x
    - jdk: oraclejdk7
-     env: SCALA=-Pscala-2.11
+   # Covers Open JDK, Spark 1.3.x
+   - jdk: openjdk7
+     env: SPARK=-Pspark-1.3
    # Covers Spark 1.4
    - jdk: openjdk7
      env: SPARK=-Pspark-1.4
+   # Covers Spark 1.5, Java 8, Oracle JDK
+   - jdk: oraclejdk8
+     env: SPARK=-Pspark-1.5 JAVA=-Pjava8
+   # Covers Scala 2.11
+   - jdk: oraclejdk8
+     env: SPARK=-Pspark-1.5 JAVA=-Pjava8 SCALA=-Pscala-2.11
 cache:
   directories:
     - $HOME/.m2
