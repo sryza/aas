@@ -1,6 +1,7 @@
 These code examples are excerpted from Advanced Analytics with Spark by Sanford Ryza,
 Uri Laserson, Sean Owen and Joshua Wills published by O'Reilly Media, Inc.
-(ISBN _____________) which you can purchase here: [Book URL on oreilly.com].
+(ISBN 978-1491912768) which you can purchase here:
+http://shop.oreilly.com/product/0636920035091.do
 
 You may use these code examples in your programs and documentation. You do not need to
 contact O'Reilly for permission unless you're reproducing a significant portion of the
@@ -14,10 +15,13 @@ We appreciate, but do not require, attribution. An attribution usually includes 
 author, publisher, and ISBN. For example: 
 
 Advanced Analytics with Spark by Sanford Ryza, Uri Laserson, Sean Owen and Joshua Wills
-(O'Reilly). Copyright 2015 Sanford Ryza, Uri Laserson, Sean Owen and Joshua Wills. [ISBN].
+(O'Reilly). Copyright 2015 Sanford Ryza, Uri Laserson, Sean Owen and Joshua Wills.
+978-1491912768.
 
 If you feel your use of these code examples falls outside fair use or the permission given
 here, feel free to contact O'Reilly at permissions@oreilly.com.
+
+
 
 Third-Party Source Code
 ---------------------------------------

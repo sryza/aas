@@ -5,7 +5,7 @@ Code to accompany [Advanced Analytics with Spark](http://shop.oreilly.com/produc
 by [Sandy Ryza](https://github.com/sryza), [Uri Laserson](https://github.com/laserson), 
 [Sean Owen](https://github.com/srowen), and [Josh Wills](https://github.com/jwills).
 
-![Advanced Analytics with Spark](http://akamaicovers.oreilly.com/images/0636920035091/lrg.jpg)
+[![Advanced Analytics with Spark](http://akamaicovers.oreilly.com/images/0636920035091/lrg.jpg)](http://shop.oreilly.com/product/0636920035091.do)
 
 ### Build
 
