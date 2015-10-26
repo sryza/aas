@@ -12,9 +12,13 @@ import java.text.SimpleDateFormat
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.SparkContext._
+import org.apache.spark.rdd.RDD
+
 import breeze.plot._
 
-import com.github.nscala_time.time.Imports._
+import com.github.nscala_time.time.Implicits._
 
 import org.apache.commons.math3.distribution.ChiSquaredDistribution
 import org.apache.commons.math3.distribution.MultivariateNormalDistribution
@@ -22,9 +26,7 @@ import org.apache.commons.math3.random.MersenneTwister
 import org.apache.commons.math3.stat.correlation.Covariance
 import org.apache.commons.math3.stat.regression.OLSMultipleLinearRegression
 
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.SparkContext._
-import org.apache.spark.rdd.RDD
+import org.joda.time.DateTime
 
 object RunRisk {
   def main(args: Array[String]): Unit = {
