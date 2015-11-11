@@ -438,7 +438,7 @@
     <profile>
       <id>spark-1.5</id>
       <properties>
-        <spark.version>1.5.1</spark.version>
+        <spark.version>1.5.2</spark.version>
       </properties>
     </profile>
     <profile>
