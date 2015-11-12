@@ -46,7 +46,7 @@ object RunLSA {
   }
 
   /**
-   * Returns an RDD of rows of the term document matrix, a mapping of column indices to terms, and a
+   * Returns an RDD of rows of the document-term matrix, a mapping of column indices to terms, and a
    * mapping of row IDs to document titles.
    */
   def preprocessing(sampleSize: Double, numTerms: Int, sc: SparkContext)
@@ -65,7 +65,7 @@ object RunLSA {
 
     val filtered = lemmatized.filter(_._2.size > 1)
 
-    termDocumentMatrix(filtered, stopWords, numTerms, sc)
+    documentTermMatrix(filtered, stopWords, numTerms, sc)
   }
 
   def topTermsInTopConcepts(svd: SingularValueDecomposition[RowMatrix, Matrix], numConcepts: Int,
