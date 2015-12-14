@@ -197,11 +197,11 @@ object RunRisk {
   def trimToRegion(history: Array[(DateTime, Double)], start: DateTime, end: DateTime)
   : Array[(DateTime, Double)] = {
     var trimmed = history.dropWhile(_._1 < start).takeWhile(_._1 <= end)
-    if (trimmed.head._1 != start) {
-      trimmed = Array((start, trimmed.head._2)) ++ trimmed
+    if (trimmed.isEmpty || trimmed.head._1 != start) {
+      trimmed = (start, trimmed.head._2) +: trimmed
     }
     if (trimmed.last._1 != end) {
-      trimmed = trimmed ++ Array((end, trimmed.last._2))
+      trimmed = trimmed :+ (end, trimmed.last._2)
     }
     trimmed
   }
