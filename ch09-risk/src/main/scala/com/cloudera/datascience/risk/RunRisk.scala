@@ -8,6 +8,7 @@ package com.cloudera.datascience.risk
 
 import java.io.File
 import java.text.SimpleDateFormat
+import java.util.Locale
 
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
@@ -231,7 +232,7 @@ object RunRisk {
   }
 
   def readInvestingDotComHistory(file: File): Array[(DateTime, Double)] = {
-    val format = new SimpleDateFormat("MMM d, yyyy")
+    val format = new SimpleDateFormat("MMM d, yyyy", Locale.ENGLISH)
     val lines = Source.fromFile(file).getLines().toSeq
     lines.map(line => {
       val cols = line.split('\t')
