@@ -246,7 +246,7 @@ object RunRisk {
    * Reads a history in the Yahoo format
    */
   def readYahooHistory(file: File): Array[(DateTime, Double)] = {
-    val format = new SimpleDateFormat("yyyy-MM-dd")
+    val format = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
     val lines = Source.fromFile(file).getLines().toSeq
     lines.tail.map(line => {
       val cols = line.split(',')
