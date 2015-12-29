@@ -15,9 +15,12 @@ matrix:
    # Covers Spark 1.5, Java 8, Oracle JDK
    - jdk: oraclejdk8
      env: SPARK=-Pspark-1.5 JAVA=-Pjava8
+   # Covers Spark 1.6
+   - jdk: oraclejdk8
+     env: SPARK=-Pspark-1.6 JAVA=-Pjava8
    # Covers Scala 2.11
    - jdk: oraclejdk8
-     env: SPARK=-Pspark-1.5 JAVA=-Pjava8 SCALA=-Pscala-2.11
+     env: SPARK=-Pspark-1.6 JAVA=-Pjava8 SCALA=-Pscala-2.11
 cache:
   directories:
     - $HOME/.m2
