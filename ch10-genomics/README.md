@@ -39,12 +39,12 @@ DNase data:
 
 ```bash
 hadoop fs -mkdir /user/ds/genomics/dnase
-curl -s -L "https://www.encodeproject.org/files/ENCFF001UVC/@@download/ENCFF001UVC.narrowPeak.gz" | gunzip | hadoop fs -put - /user/ds/genomics/dnase/GM12878.DNase.narrowPeak
-curl -s -L "https://www.encodeproject.org/files/ENCFF001UWQ/@@download/ENCFF001UWQ.narrowPeak.gz" | gunzip | hadoop fs -put - /user/ds/genomics/dnase/K562.DNase.narrowPeak
-curl -s -L "https://www.encodeproject.org/files/ENCFF001WEI/@@download/ENCFF001WEI.narrowPeak.gz" | gunzip | hadoop fs -put - /user/ds/genomics/dnase/BJ.DNase.narrowPeak
-curl -s -L "https://www.encodeproject.org/files/ENCFF001UVQ/@@download/ENCFF001UVQ.narrowPeak.gz" | gunzip | hadoop fs -put - /user/ds/genomics/dnase/HEK293.DNase.narrowPeak
-curl -s -L "https://www.encodeproject.org/files/ENCFF001SOM/@@download/ENCFF001SOM.narrowPeak.gz" | gunzip | hadoop fs -put - /user/ds/genomics/dnase/H54.DNase.narrowPeak
-curl -s -L "https://www.encodeproject.org/files/ENCFF001UVU/@@download/ENCFF001UVU.narrowPeak.gz" | gunzip | hadoop fs -put - /user/ds/genomics/dnase/HepG2.DNase.narrowPeak
+curl -s -L "https://www.encodeproject.org/files/ENCFF001UVC/@@download/ENCFF001UVC.bed.gz" | gunzip | hadoop fs -put - /user/ds/genomics/dnase/GM12878.DNase.narrowPeak
+curl -s -L "https://www.encodeproject.org/files/ENCFF001UWQ/@@download/ENCFF001UWQ.bed.gz" | gunzip | hadoop fs -put - /user/ds/genomics/dnase/K562.DNase.narrowPeak
+curl -s -L "https://www.encodeproject.org/files/ENCFF001WEI/@@download/ENCFF001WEI.bed.gz" | gunzip | hadoop fs -put - /user/ds/genomics/dnase/BJ.DNase.narrowPeak
+curl -s -L "https://www.encodeproject.org/files/ENCFF001UVQ/@@download/ENCFF001UVQ.bed.gz" | gunzip | hadoop fs -put - /user/ds/genomics/dnase/HEK293.DNase.narrowPeak
+curl -s -L "https://www.encodeproject.org/files/ENCFF001SOM/@@download/ENCFF001SOM.bed.gz" | gunzip | hadoop fs -put - /user/ds/genomics/dnase/H54.DNase.narrowPeak
+curl -s -L "https://www.encodeproject.org/files/ENCFF001UVU/@@download/ENCFF001UVU.bed.gz" | gunzip | hadoop fs -put - /user/ds/genomics/dnase/HepG2.DNase.narrowPeak
 ```
 
 GENCODE data:
@@ -57,12 +57,12 @@ ChIP-seq data for CTCF:
 
 ```bash
 hadoop fs -mkdir /user/ds/genomics/chip-seq
-curl -s -L "https://www.encodeproject.org/files/ENCFF001VED/@@download/ENCFF001VED.narrowPeak.gz" | gunzip | hadoop fs -put - /user/ds/genomics/chip-seq/GM12878.ChIP-seq.CTCF.narrowPeak
-curl -s -L "https://www.encodeproject.org/files/ENCFF001VMZ/@@download/ENCFF001VMZ.narrowPeak.gz" | gunzip | hadoop fs -put - /user/ds/genomics/chip-seq/K562.ChIP-seq.CTCF.narrowPeak
-curl -s -L "https://www.encodeproject.org/files/ENCFF001XMU/@@download/ENCFF001XMU.narrowPeak.gz" | gunzip | hadoop fs -put - /user/ds/genomics/chip-seq/BJ.ChIP-seq.CTCF.narrowPeak
-curl -s -L "https://www.encodeproject.org/files/ENCFF001XQU/@@download/ENCFF001XQU.narrowPeak.gz" | gunzip | hadoop fs -put - /user/ds/genomics/chip-seq/HEK293.ChIP-seq.CTCF.narrowPeak
-curl -s -L "https://www.encodeproject.org/files/ENCFF001USC/@@download/ENCFF001USC.narrowPeak.gz" | gunzip | hadoop fs -put - /user/ds/genomics/chip-seq/H54.ChIP-seq.CTCF.narrowPeak
-curl -s -L "https://www.encodeproject.org/files/ENCFF001XRC/@@download/ENCFF001XRC.narrowPeak.gz" | gunzip | hadoop fs -put - /user/ds/genomics/chip-seq/HepG2.ChIP-seq.CTCF.narrowPeak
+curl -s -L "https://www.encodeproject.org/files/ENCFF001VED/@@download/ENCFF001VED.bed.gz" | gunzip | hadoop fs -put - /user/ds/genomics/chip-seq/GM12878.ChIP-seq.CTCF.narrowPeak
+curl -s -L "https://www.encodeproject.org/files/ENCFF001VMZ/@@download/ENCFF001VMZ.bed.gz" | gunzip | hadoop fs -put - /user/ds/genomics/chip-seq/K562.ChIP-seq.CTCF.narrowPeak
+curl -s -L "https://www.encodeproject.org/files/ENCFF001XMU/@@download/ENCFF001XMU.bed.gz" | gunzip | hadoop fs -put - /user/ds/genomics/chip-seq/BJ.ChIP-seq.CTCF.narrowPeak
+curl -s -L "https://www.encodeproject.org/files/ENCFF001XQU/@@download/ENCFF001XQU.bed.gz" | gunzip | hadoop fs -put - /user/ds/genomics/chip-seq/HEK293.ChIP-seq.CTCF.narrowPeak
+curl -s -L "https://www.encodeproject.org/files/ENCFF001USC/@@download/ENCFF001USC.bed.gz" | gunzip | hadoop fs -put - /user/ds/genomics/chip-seq/H54.ChIP-seq.CTCF.narrowPeak
+curl -s -L "https://www.encodeproject.org/files/ENCFF001XRC/@@download/ENCFF001XRC.bed.gz" | gunzip | hadoop fs -put - /user/ds/genomics/chip-seq/HepG2.ChIP-seq.CTCF.narrowPeak
 ```
 
 phyloP data:
