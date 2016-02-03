@@ -161,7 +161,7 @@ object RunGeoTime extends Serializable {
     d.getStandardHours >= 4
   }
 
-  def groupByKeyAndSortValues[K : Ordering : ClassTag, V : ClassTag, S](
+  def groupByKeyAndSortValues[K : Ordering : ClassTag, V : ClassTag, S : Ordering](
       rdd: RDD[(K, V)],
       secondaryKeyFunc: (V) => S,
       splitFunc: (V, V) => Boolean,
@@ -172,7 +172,6 @@ object RunGeoTime extends Serializable {
       }
     }
     val partitioner = new FirstKeyPartitioner[K, S](numPartitions)
-    implicit val ordering: Ordering[(K,S)] = Ordering.by(_._1)
     presess.repartitionAndSortWithinPartitions(partitioner).mapPartitions(groupSorted(_, splitFunc))
   }
 
