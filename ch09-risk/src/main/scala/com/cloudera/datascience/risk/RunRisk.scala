@@ -80,12 +80,7 @@ object RunRisk {
   def computeFactorWeights(
       stocksReturns: Seq[Array[Double]],
       factorFeatures: Array[Array[Double]]): Array[Array[Double]] = {
-    val models = stocksReturns.map(linearModel(_, factorFeatures))
-    val factorWeights = Array.ofDim[Double](stocksReturns.length, factorFeatures.head.length+1)
-    for (s <- 0 until stocksReturns.length) {
-      factorWeights(s) = models(s).estimateRegressionParameters()
-    }
-    factorWeights
+    stocksReturns.map(linearModel(_, factorFeatures)).map(_.estimateRegressionParameters()).toArray
   }
 
   def featurize(factorReturns: Array[Double]): Array[Double] = {
