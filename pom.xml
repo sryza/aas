@@ -124,7 +124,7 @@
       <dependency>
         <groupId>joda-time</groupId>
         <artifactId>joda-time</artifactId>
-        <version>2.9.3</version>
+        <version>2.9.4</version>
       </dependency>
       <dependency>
         <groupId>org.joda</groupId>
@@ -197,7 +197,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <hadoop.version>2.6.0</hadoop.version>
+    <hadoop.version>2.6.4</hadoop.version>
     <java.version>1.7</java.version>
     <maven.version.min>3.0.5</maven.version.min>
     <scala.minor.version>2.10</scala.minor.version>
@@ -253,7 +253,7 @@
         <plugin>
           <groupId>org.apache.rat</groupId>
           <artifactId>apache-rat-plugin</artifactId>
-          <version>0.11</version>
+          <version>0.12</version>
           <configuration>
             <excludes>
               <exclude>**/*.iml</exclude>
@@ -280,20 +280,6 @@
               </goals>
             </execution>
           </executions>
-          <!-- workaround for Xerces warnings -->
-          <dependencies>
-            <dependency>
-              <groupId>org.apache.maven.doxia</groupId>
-              <artifactId>doxia-core</artifactId>
-              <version>1.6</version>
-              <exclusions>
-                <exclusion>
-                  <groupId>xerces</groupId>
-                  <artifactId>xercesImpl</artifactId>
-                </exclusion>
-              </exclusions>
-            </dependency>
-          </dependencies>
         </plugin>
         <plugin>
           <groupId>net.alchim31.maven</groupId>
@@ -348,7 +334,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>2.6</version>
+          <version>3.0.1</version>
           <configuration>
             <skipIfEmpty>true</skipIfEmpty>
           </configuration>
@@ -380,7 +366,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-resources-plugin</artifactId>
-          <version>2.7</version>
+          <version>3.0.1</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -445,6 +431,12 @@
       <id>spark-1.6</id>
       <properties>
         <spark.version>1.6.1</spark.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>spark-2.0</id>
+      <properties>
+        <spark.version>2.0.0-preview</spark.version>
       </properties>
     </profile>
     <profile>
