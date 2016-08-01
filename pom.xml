@@ -134,12 +134,12 @@
     </dependencies>
   </dependencyManagement>
 
-  <url>http://github.com/sryza/aas</url>
+  <url>https://github.com/sryza/aas</url>
   <inceptionYear>2014</inceptionYear>
   <licenses>
     <license>
       <name>The Apache Software License, Version 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
       <distribution>repo</distribution>
     </license>
   </licenses>
@@ -168,7 +168,7 @@
 
   <issueManagement>
     <system>GitHub</system>
-    <url>http://github.com/sryza/aas/issues</url>
+    <url>https://github.com/sryza/aas/issues</url>
   </issueManagement>
   <scm>
     <connection>scm:git:https://github.com/sryza/aas.git</connection>
@@ -321,7 +321,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-source-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>3.0.1</version>
           <executions>
             <execution>
               <id>attach-sources</id>
@@ -334,7 +334,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>3.0.1</version>
+          <version>3.0.2</version>
           <configuration>
             <skipIfEmpty>true</skipIfEmpty>
           </configuration>
@@ -430,13 +430,14 @@
     <profile>
       <id>spark-1.6</id>
       <properties>
-        <spark.version>1.6.1</spark.version>
+        <spark.version>1.6.2</spark.version>
       </properties>
     </profile>
+    <!-- Note: building spark-2.0 requires scala-2.11 due to an ADAM issue -->
     <profile>
       <id>spark-2.0</id>
       <properties>
-        <spark.version>2.0.0-preview</spark.version>
+        <spark.version>2.0.0</spark.version>
       </properties>
     </profile>
     <profile>
