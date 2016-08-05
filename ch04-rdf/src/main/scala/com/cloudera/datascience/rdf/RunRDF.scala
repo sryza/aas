@@ -51,7 +51,7 @@ object RunRDF {
     val metrics = getMetrics(model, cvData)
 
     println(metrics.confusionMatrix)
-    println(metrics.precision)
+    println(metrics.accuracy)
 
     (0 until 7).map(
       category => (metrics.precision(category), metrics.recall(category))
@@ -94,7 +94,7 @@ object RunRDF {
         yield {
           val model = DecisionTree.trainClassifier(
             trainData, 7, Map[Int,Int](), impurity, depth, bins)
-          val accuracy = getMetrics(model, cvData).precision
+          val accuracy = getMetrics(model, cvData).accuracy
           ((impurity, depth, bins), accuracy)
         }
 
@@ -102,8 +102,8 @@ object RunRDF {
 
     val model = DecisionTree.trainClassifier(
       trainData.union(cvData), 7, Map[Int,Int](), "entropy", 20, 300)
-    println(getMetrics(model, testData).precision)
-    println(getMetrics(model, trainData.union(cvData)).precision)
+    println(getMetrics(model, testData).accuracy)
+    println(getMetrics(model, trainData.union(cvData)).accuracy)
   }
 
   def unencodeOneHot(rawData: RDD[String]): RDD[LabeledPoint] = {
@@ -137,8 +137,8 @@ object RunRDF {
         // Specify value count for categorical features 10, 11
         val model = DecisionTree.trainClassifier(
           trainData, 7, Map(10 -> 4, 11 -> 40), impurity, depth, bins)
-        val trainAccuracy = getMetrics(model, trainData).precision
-        val cvAccuracy = getMetrics(model, cvData).precision
+        val trainAccuracy = getMetrics(model, trainData).accuracy
+        val cvAccuracy = getMetrics(model, cvData).accuracy
         // Return train and CV accuracy
         ((impurity, depth, bins), (trainAccuracy, cvAccuracy))
       }
@@ -147,7 +147,7 @@ object RunRDF {
 
     val model = DecisionTree.trainClassifier(
       trainData.union(cvData), 7, Map(10 -> 4, 11 -> 40), "entropy", 30, 300)
-    println(getMetrics(model, testData).precision)
+    println(getMetrics(model, testData).accuracy)
 
     trainData.unpersist()
     cvData.unpersist()
@@ -168,7 +168,7 @@ object RunRDF {
     val predictionsAndLabels = cvData.map(example =>
       (forest.predict(example.features), example.label)
     )
-    println(new MulticlassMetrics(predictionsAndLabels).precision)
+    println(new MulticlassMetrics(predictionsAndLabels).accuracy)
 
     val input = "2709,125,28,67,23,3224,253,207,61,6094,0,29"
     val vector = Vectors.dense(input.split(',').map(_.toDouble))
