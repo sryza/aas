@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
- Copyright 2015 Sanford Ryza, Uri Laserson, Sean Owen and Joshua Wills
+ Copyright 2015 and onwards Sanford Ryza, Juliet Hougland, Uri Laserson, Sean Owen and Joshua Wills
 
  See LICENSE file for further information.
  -->
@@ -15,7 +15,7 @@
   <modelVersion>4.0.0</modelVersion>
   <artifactId>common</artifactId>
   <packaging>jar</packaging>
-  <name>Advanced Analytics with Spark Common</name>
+  <name>Common</name>
   <version>2.0.0</version>
 
   <dependencies>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
- Copyright 2015 Sanford Ryza, Uri Laserson, Sean Owen and Joshua Wills
+ Copyright 2015 and onwards Sanford Ryza, Juliet Hougland, Uri Laserson, Sean Owen and Joshua Wills
 
  See LICENSE file for further information.
  -->
@@ -147,12 +147,17 @@
     <developer>
       <id>sryza</id>
       <name>Sandy Ryza</name>
+      <organization>Clover Health</organization>
+    </developer>
+    <developer>
+      <id>jhlch</id>
+      <name>Juliet Hougland</name>
       <organization>Cloudera</organization>
     </developer>
     <developer>
-      <id>jwills</id>
-      <name>Josh Wills</name>
-      <organization>Cloudera</organization>
+      <id>laserson</id>
+      <name>Uri Laserson</name>
+      <organization>Icahn School of Medicine</organization>
     </developer>
     <developer>
       <id>srowen</id>
@@ -160,9 +165,9 @@
       <organization>Cloudera</organization>
     </developer>
     <developer>
-      <id>laserson</id>
-      <name>Uri Laserson</name>
-      <organization>Cloudera</organization>
+      <id>jwills</id>
+      <name>Josh Wills</name>
+      <organization>Slack</organization>
     </developer>
   </developers>
 
@@ -267,7 +272,7 @@
             <licenses>
               <license implementation="org.apache.rat.analysis.license.SimplePatternBasedLicense">
                 <patterns>
-                  <pattern>Copyright 2015 Sanford Ryza, Uri Laserson, Sean Owen and Joshua Wills</pattern>
+                  <pattern>Copyright 2015 and onwards Sanford Ryza, Juliet Hougland, Uri Laserson, Sean Owen and Joshua Wills</pattern>
                 </patterns>
               </license>
             </licenses>
@@ -312,6 +317,9 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
           <version>3.5.1</version>
+          <configuration>
+            <skip>true</skip> <!-- scala plugin compiles everything -->
+          </configuration>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
