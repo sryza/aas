@@ -58,6 +58,7 @@ object RunGeoTime extends Serializable {
     }
 
     taxiGood.values.map(hours).countByValue().toList.sorted.foreach(println)
+    taxiParsed.unpersist()
 
     val taxiClean = taxiGood.filter {
       case (lic, trip) => {
@@ -97,10 +98,10 @@ object RunGeoTime extends Serializable {
     }.cache()
 
     taxiDone.values.map(borough).countByValue().foreach(println)
+    taxiGood.unpersist()
 
     def secondaryKeyFunc(trip: Trip) = trip.pickupTime.getMillis
     val sessions = groupByKeyAndSortValues(taxiDone, secondaryKeyFunc, split, 30)
-    sessions.cache()
 
     def boroughDuration(t1: Trip, t2: Trip): (Option[String], Duration) = {
       val b = borough(t1)
@@ -116,6 +117,7 @@ object RunGeoTime extends Serializable {
       }).cache()
 
     boroughDurations.values.map(_.getStandardHours).countByValue().toList.sorted.foreach(println)
+    taxiDone.unpersist()
 
     boroughDurations.filter {
       case (b, d) => d.getMillis >= 0
@@ -124,6 +126,8 @@ object RunGeoTime extends Serializable {
       s.merge(d.getStandardSeconds)
     }).
     reduceByKey((a, b) => a.merge(b)).collect().foreach(println)
+
+    boroughDurations.unpersist()
   }
 
   def point(longitude: String, latitude: String): Point = {
