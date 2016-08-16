@@ -17,9 +17,7 @@ import org.apache.spark.sql.functions._
 object RunRecommender {
 
   def main(args: Array[String]): Unit = {
-    val spark = SparkSession.builder().
-      config("spark.sql.crossJoin.enabled", true).
-      getOrCreate()
+    val spark = SparkSession.builder().getOrCreate()
 
     val base = "hdfs:///user/ds/"
     val rawUserArtistData = spark.read.textFile(base + "user_artist_data.txt")
@@ -51,9 +49,7 @@ object RunRecommender {
     val artistAlias = buildArtistAlias(spark, rawArtistAlias)
 
     val (badID, goodID) = artistAlias.head
-    val badArtist = artistByID.filter(col("id") === badID).select("name").as[String].first()
-    val goodArtist = artistByID.filter(col("id") === goodID).select("name").as[String].first()
-    println(s"$badArtist -> $goodArtist")
+    artistByID.filter(col("id") isin (badID, goodID)).show()
   }
 
   def model(
@@ -77,25 +73,27 @@ object RunRecommender {
 
     trainData.unpersist()
 
-    model.userFactors.show(1)
+    model.userFactors.select("features").show(truncate = false)
 
     val userID = 2093760
-    val topRecommendations = makeRecommendations(model, userID, 5)
-    topRecommendations.show()
 
-    val recommendedArtistIDs = topRecommendations.select("artist").as[Int].collect()
     val existingArtistIDs = trainData.
       filter(col("user") === userID).
       select("artist").as[Int].collect()
 
     val artistByID = buildArtistByID(spark, rawArtistData)
 
-    artistByID.join(spark.createDataset(existingArtistIDs).toDF("id"), "id").
-      select("name").show()
-    artistByID.join(spark.createDataset(recommendedArtistIDs).toDF("id"), "id").
-      select("name").show()
+    artistByID.filter(col("id") isin (existingArtistIDs:_*)).show()
 
-    unpersist(model)
+    val topRecommendations = makeRecommendations(model, userID, 5)
+    topRecommendations.show()
+
+    val recommendedArtistIDs = topRecommendations.select("artist").as[Int].collect()
+
+    artistByID.filter(col("id") isin (recommendedArtistIDs:_*)).show()
+
+    model.userFactors.unpersist()
+    model.itemFactors.unpersist()
   }
 
   def evaluate(
@@ -120,22 +118,27 @@ object RunRecommender {
     println(mostListenedAUC)
 
     val evaluations =
-      for (rank   <- Seq(10,  50);
-           lambda <- Seq(1.0, 0.0001);
-           alpha  <- Seq(1.0, 40.0))
+      for (rank     <- Seq(5,  30);
+           regParam <- Seq(1.0, 0.0001);
+           alpha    <- Seq(1.0, 40.0))
       yield {
         val model = new ALS().
           setImplicitPrefs(true).
-          setRank(rank).setRegParam(lambda).setAlpha(alpha).setMaxIter(10).
+          setRank(rank).setRegParam(regParam).
+          setAlpha(alpha).setMaxIter(20).
           setUserCol("user").setItemCol("artist").
           setRatingCol("count").setPredictionCol("prediction").
           fit(trainData)
+
         val auc = areaUnderCurve(spark, cvData, bAllArtistIDs, model.transform)
-        unpersist(model)
-        ((rank, lambda, alpha), auc)
+
+        model.userFactors.unpersist()
+        model.itemFactors.unpersist()
+
+        (auc, (rank, regParam, alpha))
       }
 
-    evaluations.sortBy(_._2).reverse.foreach(println)
+    evaluations.sorted.reverse.foreach(println)
 
     trainData.unpersist()
     cvData.unpersist()
@@ -153,7 +156,7 @@ object RunRecommender {
     val allData = buildCounts(spark, rawUserArtistData, bArtistAlias).cache()
     val model = new ALS().
       setImplicitPrefs(true).
-      setRank(50).setRegParam(1.0).setAlpha(40.0).setMaxIter(10).
+      setRank(10).setRegParam(1.0).setAlpha(40.0).setMaxIter(20).
       setUserCol("user").setItemCol("artist").
       setRatingCol("count").setPredictionCol("prediction").
       fit(allData)
@@ -167,7 +170,8 @@ object RunRecommender {
     artistByID.join(spark.createDataset(recommendedArtistIDs).toDF("id"), "id").
       select("name").show()
 
-    unpersist(model)
+    model.userFactors.unpersist()
+    model.itemFactors.unpersist()
   }
 
   def buildArtistByID(spark: SparkSession, rawArtistData: Dataset[String]): DataFrame = {
@@ -212,9 +216,8 @@ object RunRecommender {
 
   def makeRecommendations(model: ALSModel, userID: Int, howMany: Int): DataFrame = {
     val toRecommend = model.itemFactors.
-      withColumnRenamed("id", "artist").
-      withColumn("user", lit(userID)).
-      select("user", "artist")
+      select(col("id").as("artist")).
+      withColumn("user", lit(userID))
     model.transform(toRecommend).
       select("artist", "prediction").
       orderBy(col("prediction").desc).
@@ -235,7 +238,7 @@ object RunRecommender {
 
     // Take held-out data as the "positive".
     // Make predictions for each of them, including a numeric score
-    val positivePredictions = predictFunction(positiveData).
+    val positivePredictions = predictFunction(positiveData.select("user", "artist")).
       withColumnRenamed("prediction", "positivePrediction")
 
     // BinaryClassificationMetrics.areaUnderROC is not used here since there are really lots of
@@ -252,31 +255,41 @@ object RunRecommender {
         val negative = new ArrayBuffer[Int]()
         val allArtistIDs = bAllArtistIDs.value
         var i = 0
+        // Make at most one pass over all artists to avoid an infinite loop.
+        // Also stop when number of negative equals positive set size
         while (i < allArtistIDs.length && negative.size < posItemIDSet.size) {
           val artistID = allArtistIDs(random.nextInt(allArtistIDs.length))
+          // Only add new distinct IDs
           if (!posItemIDSet.contains(artistID)) {
             negative += artistID
           }
           i += 1
         }
-        negative.map(itemID => (userID, itemID))
+        // Return the set with user ID added back
+        negative.map(artistID => (userID, artistID))
       }.toDF("user", "artist")
 
     // Make predictions on the rest:
     val negativePredictions = predictFunction(negativeData).
       withColumnRenamed("prediction", "negativePrediction")
 
+    // Join positive predictions to negative predictions by user, only.
+    // This will result in a row for every possible pairing of positive and negative
+    // predictions within each user.
     val joinedPredictions = positivePredictions.join(negativePredictions, "user").
       select("user", "positivePrediction", "negativePrediction").cache()
 
+    // Count the number of pairs per user
     val allCounts = joinedPredictions.
-      groupBy("user").agg(count("user").as("total")).
+      groupBy("user").agg(count(lit("1")).as("total")).
       select("user", "total")
+    // Count the number of correctly ordered pairs per user
     val correctCounts = joinedPredictions.
       filter(col("positivePrediction") > col("negativePrediction")).
       groupBy("user").agg(count("user").as("correct")).
       select("user", "correct")
 
+    // Combine these, compute their ratio, and average over all users
     val meanAUC = allCounts.join(correctCounts, "user").
       select(col("user"), (col("correct") / col("total")).as("auc")).
       agg(mean("auc")).
@@ -288,15 +301,12 @@ object RunRecommender {
   }
 
   def predictMostListened(spark: SparkSession, train: DataFrame)(allData: DataFrame): DataFrame = {
-    val listenCounts = train.groupBy("artist").agg(sum("count").as("prediction"))
-    allData.join(listenCounts, "artist").select("user", "artist", "prediction")
-  }
-
-  def unpersist(model: ALSModel): Unit = {
-    // At the moment, it's necessary to manually unpersist the DataFrames inside the model
-    // when done with it in order to make sure they are promptly uncached
-    model.userFactors.unpersist()
-    model.itemFactors.unpersist()
+    val listenCounts = train.groupBy("artist").
+      agg(sum("count").as("prediction")).
+      select("artist", "prediction")
+    allData.
+      join(listenCounts, Seq("artist"), "left_outer").
+      select("user", "artist", "prediction")
   }
 
 }
