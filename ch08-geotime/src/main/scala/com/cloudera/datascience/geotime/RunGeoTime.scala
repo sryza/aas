@@ -101,7 +101,7 @@ object RunGeoTime extends Serializable {
     taxiGood.unpersist()
 
     def secondaryKeyFunc(trip: Trip) = trip.pickupTime.getMillis
-    val sessions = groupByKeyAndSortValues(taxiDone, secondaryKeyFunc, split, 30)
+    val sessions = groupByKeyAndSortValues(taxiDone, secondaryKeyFunc, split)
 
     def boroughDuration(t1: Trip, t2: Trip): (Option[String], Duration) = {
       val b = borough(t1)
@@ -170,14 +170,13 @@ object RunGeoTime extends Serializable {
   def groupByKeyAndSortValues[K : Ordering : ClassTag, V : ClassTag, S : Ordering](
       rdd: RDD[(K, V)],
       secondaryKeyFunc: (V) => S,
-      splitFunc: (V, V) => Boolean,
-      numPartitions: Int): RDD[(K, List[V])] = {
+      splitFunc: (V, V) => Boolean): RDD[(K, List[V])] = {
     val presess = rdd.map {
       case (lic, trip) => {
         ((lic, secondaryKeyFunc(trip)), trip)
       }
     }
-    val partitioner = new FirstKeyPartitioner[K, S](numPartitions)
+    val partitioner = new FirstKeyPartitioner[K, S](presess.partitions.length)
     presess.repartitionAndSortWithinPartitions(partitioner).mapPartitions(groupSorted(_, splitFunc))
   }
 
