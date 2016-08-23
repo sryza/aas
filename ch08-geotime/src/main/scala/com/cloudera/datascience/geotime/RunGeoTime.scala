@@ -183,23 +183,20 @@ object RunGeoTime extends Serializable {
   def groupSorted[K, V, S](
       it: Iterator[((K, S), V)],
       splitFunc: (V, V) => Boolean): Iterator[(K, List[V])] = {
-    val res = List[(K, ArrayBuffer[V])]()
-    it.foldLeft(res)((list, next) => list match {
-      case Nil => {
-        val ((lic, _), trip) = next
-        List((lic, ArrayBuffer(trip)))
+    var curLic: K = null.asInstanceOf[K]
+    val curTrips = ArrayBuffer[V]()
+    it.flatMap { case ((lic, _), trip) =>
+      if (!lic.equals(curLic) || splitFunc(curTrips.last, trip)) {
+        val result = (curLic, List(curTrips:_*))
+        curLic = lic
+        curTrips.clear()
+        curTrips += trip
+        if (result._2.isEmpty) None else Some(result)
+      } else {
+        curTrips += trip
+        None
       }
-      case cur :: rest => {
-        val (curLic, trips) = cur
-        val ((lic, _), trip) = next
-        if (!lic.equals(curLic) || splitFunc(trips.last, trip)) {
-          (lic, ArrayBuffer(trip)) :: list
-        } else {
-          trips.append(trip)
-          list
-        }
-      }
-    }).map { case (lic, buf) => (lic, buf.toList) }.iterator
+    } ++ Iterator((curLic, List(curTrips:_*)))
   }
 }
 
