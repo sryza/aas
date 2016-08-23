@@ -192,12 +192,12 @@ object RunGeoTime extends Serializable {
         curLic = lic
         curTrips.clear()
         curTrips += trip
-        Some(result)
+        if (result._2.isEmpty) None else Some(result)
       } else {
         curTrips += trip
         None
       }
-    }
+    } ++ Iterator((curLic, List(curTrips:_*)))
   }
 }
 
