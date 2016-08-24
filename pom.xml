@@ -197,6 +197,7 @@
     <module>ch08-geotime</module>
     <module>ch09-risk</module>
     <module>ch10-genomics</module>
+    <module>simplesparkproject</module>
   </modules>
 
   <properties>

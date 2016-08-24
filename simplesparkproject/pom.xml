@@ -17,46 +17,29 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.cloudera.datascience</groupId>
   <artifactId>simplesparkproject</artifactId>
-  <version>0.0.1</version>
+  <version>0.1.0</version>
   <packaging>jar</packaging>
   <name>Simple Spark Project</name>
 
   <prerequisites>
-    <maven>3.1.1</maven>
+    <maven>3.2.5</maven>
   </prerequisites>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <java.version>1.7</java.version>
-    <scala.minor.version>2.10</scala.minor.version>
-    <scala.complete.version>${scala.minor.version}.4</scala.complete.version>
-    <spark.version>1.2.1</spark.version>
+    <java.version>1.8</java.version>
+    <scala.minor.version>2.11</scala.minor.version>
+    <scala.complete.version>${scala.minor.version}.8</scala.complete.version>
+    <spark.version>2.0.0</spark.version>
   </properties>
-
-  <profiles>
-    <profile>
-      <id>cdh</id>
-      <properties>
-        <spark.version>1.2.0-cdh5.3.1</spark.version>
-      </properties>
-    </profile>
-  </profiles>
-
-  <repositories>
-    <repository>
-      <id>cloudera-repos</id>
-      <name>Cloudera Repos</name>
-      <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
-    </repository>
-  </repositories>
 
   <build>
     <plugins>
       <plugin>
         <groupId>net.alchim31.maven</groupId>
         <artifactId>scala-maven-plugin</artifactId>
-        <version>3.2.0</version>
+        <version>3.2.2</version>
         <configuration>
           <scalaVersion>${scala.complete.version}</scalaVersion>
           <javacArgs>
@@ -75,8 +58,51 @@
           </execution>
         </executions>
       </plugin>
+      <!-- Create JAR with dependencies, with specific main class -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>2.6</version>
+        <configuration>
+          <descriptorRefs>
+            <descriptorRef>jar-with-dependencies</descriptorRef>
+          </descriptorRefs>
+          <recompressZippedFiles>false</recompressZippedFiles>
+          <archive>
+            <manifest>
+              <mainClass>com.cloudera.datascience.MyApp</mainClass>
+            </manifest>
+          </archive>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>  
   </build>
+
+  <dependencyManagement>
+    <dependencies>
+      <!-- Make sure this version is harmonized -->
+      <dependency>
+        <groupId>org.scala-lang</groupId>
+        <artifactId>scalap</artifactId>
+        <version>${scala.complete.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.scala-lang</groupId>
+        <artifactId>scala-compiler</artifactId>
+        <version>${scala.complete.version}</version>
+        <scope>provided</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
     <dependency>
@@ -85,20 +111,15 @@
       <version>${scala.complete.version}</version>
       <scope>provided</scope>
     </dependency>
-    <!-- Make sure this version is harmonized -->
-    <dependency>
-      <groupId>org.scala-lang</groupId>
-      <artifactId>scalap</artifactId>
-      <version>${scala.complete.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.scala-lang</groupId>
-      <artifactId>scala-compiler</artifactId>
-      <version>${scala.complete.version}</version>
-    </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_${scala.minor.version}</artifactId>
+      <version>${spark.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-mllib_${scala.minor.version}</artifactId>
       <version>${spark.version}</version>
       <scope>provided</scope>
     </dependency>

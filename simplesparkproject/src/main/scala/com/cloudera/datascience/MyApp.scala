@@ -6,17 +6,16 @@
 
 package com.cloudera.datascience
 
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
+import org.apache.spark.sql.SparkSession
 
 object MyApp {
-  def main(args: Array[String]) {
-    val sc = new SparkContext(new SparkConf().setAppName("My App"))
-    println("num lines: " + countLines(sc, args(0)))
+  def main(args: Array[String]): Unit = {
+    val spark = SparkSession.builder().getOrCreate()
+    println("num lines: " + countLines(spark, args(0)))
   }
 
-  def countLines(sc: SparkContext, path: String): Long = {
-    sc.textFile(path).count()
+  def countLines(spark: SparkSession, path: String): Long = {
+    spark.read.textFile(path).count()
   }
 }
 
