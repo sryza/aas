@@ -24,19 +24,23 @@ object RunRecommender {
     val rawArtistData = spark.read.textFile(base + "artist_data.txt")
     val rawArtistAlias = spark.read.textFile(base + "artist_alias.txt")
 
-    preparation(spark, rawUserArtistData, rawArtistData, rawArtistAlias)
-    model(spark, rawUserArtistData, rawArtistData, rawArtistAlias)
-    evaluate(spark, rawUserArtistData, rawArtistAlias)
-    recommend(spark, rawUserArtistData, rawArtistData, rawArtistAlias)
+    val runRecommender = new RunRecommender(spark)
+    runRecommender.preparation(rawUserArtistData, rawArtistData, rawArtistAlias)
+    runRecommender.model(rawUserArtistData, rawArtistData, rawArtistAlias)
+    runRecommender.evaluate(rawUserArtistData, rawArtistAlias)
+    runRecommender.recommend(rawUserArtistData, rawArtistData, rawArtistAlias)
   }
 
+}
+
+class RunRecommender(private val spark: SparkSession) {
+
+  import spark.implicits._
+
   def preparation(
-      spark: SparkSession,
       rawUserArtistData: Dataset[String],
       rawArtistData: Dataset[String],
       rawArtistAlias: Dataset[String]): Unit = {
-
-    import spark.implicits._
 
     val userArtistDF = rawUserArtistData.map { line =>
       val Array(user, artist, _*) = line.split(' ')
@@ -45,24 +49,21 @@ object RunRecommender {
 
     userArtistDF.agg(min("user"), max("user"), min("artist"), max("artist")).show()
 
-    val artistByID = buildArtistByID(spark, rawArtistData)
-    val artistAlias = buildArtistAlias(spark, rawArtistAlias)
+    val artistByID = buildArtistByID(rawArtistData)
+    val artistAlias = buildArtistAlias(rawArtistAlias)
 
     val (badID, goodID) = artistAlias.head
-    artistByID.filter(col("id") isin (badID, goodID)).show()
+    artistByID.filter($"id" isin (badID, goodID)).show()
   }
 
   def model(
-      spark: SparkSession,
       rawUserArtistData: Dataset[String],
       rawArtistData: Dataset[String],
       rawArtistAlias: Dataset[String]): Unit = {
 
-    import spark.implicits._
+    val bArtistAlias = spark.sparkContext.broadcast(buildArtistAlias(rawArtistAlias))
 
-    val bArtistAlias = spark.sparkContext.broadcast(buildArtistAlias(spark, rawArtistAlias))
-
-    val trainData = buildCounts(spark, rawUserArtistData, bArtistAlias).cache()
+    val trainData = buildCounts(rawUserArtistData, bArtistAlias).cache()
 
     val model = new ALS().
       setImplicitPrefs(true).
@@ -78,34 +79,31 @@ object RunRecommender {
     val userID = 2093760
 
     val existingArtistIDs = trainData.
-      filter(col("user") === userID).
+      filter($"user" === userID).
       select("artist").as[Int].collect()
 
-    val artistByID = buildArtistByID(spark, rawArtistData)
+    val artistByID = buildArtistByID(rawArtistData)
 
-    artistByID.filter(col("id") isin (existingArtistIDs:_*)).show()
+    artistByID.filter($"id" isin (existingArtistIDs:_*)).show()
 
     val topRecommendations = makeRecommendations(model, userID, 5)
     topRecommendations.show()
 
     val recommendedArtistIDs = topRecommendations.select("artist").as[Int].collect()
 
-    artistByID.filter(col("id") isin (recommendedArtistIDs:_*)).show()
+    artistByID.filter($"id" isin (recommendedArtistIDs:_*)).show()
 
     model.userFactors.unpersist()
     model.itemFactors.unpersist()
   }
 
   def evaluate(
-      spark: SparkSession,
       rawUserArtistData: Dataset[String],
       rawArtistAlias: Dataset[String]): Unit = {
 
-    import spark.implicits._
+    val bArtistAlias = spark.sparkContext.broadcast(buildArtistAlias(rawArtistAlias))
 
-    val bArtistAlias = spark.sparkContext.broadcast(buildArtistAlias(spark, rawArtistAlias))
-
-    val allData = buildCounts(spark, rawUserArtistData, bArtistAlias)
+    val allData = buildCounts(rawUserArtistData, bArtistAlias)
     val Array(trainData, cvData) = allData.randomSplit(Array(0.9, 0.1))
     trainData.cache()
     cvData.cache()
@@ -113,8 +111,7 @@ object RunRecommender {
     val allArtistIDs = allData.select("artist").as[Int].distinct().collect()
     val bAllArtistIDs = spark.sparkContext.broadcast(allArtistIDs)
 
-    val mostListenedAUC = areaUnderCurve(
-      spark, cvData, bAllArtistIDs, predictMostListened(spark, trainData))
+    val mostListenedAUC = areaUnderCurve(cvData, bAllArtistIDs, predictMostListened(trainData))
     println(mostListenedAUC)
 
     val evaluations =
@@ -130,7 +127,7 @@ object RunRecommender {
           setRatingCol("count").setPredictionCol("prediction").
           fit(trainData)
 
-        val auc = areaUnderCurve(spark, cvData, bAllArtistIDs, model.transform)
+        val auc = areaUnderCurve(cvData, bAllArtistIDs, model.transform)
 
         model.userFactors.unpersist()
         model.itemFactors.unpersist()
@@ -145,15 +142,12 @@ object RunRecommender {
   }
 
   def recommend(
-      spark: SparkSession,
       rawUserArtistData: Dataset[String],
       rawArtistData: Dataset[String],
       rawArtistAlias: Dataset[String]): Unit = {
 
-    import spark.implicits._
-
-    val bArtistAlias = spark.sparkContext.broadcast(buildArtistAlias(spark, rawArtistAlias))
-    val allData = buildCounts(spark, rawUserArtistData, bArtistAlias).cache()
+    val bArtistAlias = spark.sparkContext.broadcast(buildArtistAlias(rawArtistAlias))
+    val allData = buildCounts(rawUserArtistData, bArtistAlias).cache()
     val model = new ALS().
       setImplicitPrefs(true).
       setRank(10).setRegParam(1.0).setAlpha(40.0).setMaxIter(20).
@@ -166,7 +160,7 @@ object RunRecommender {
     val topRecommendations = makeRecommendations(model, userID, 5)
 
     val recommendedArtistIDs = topRecommendations.select("artist").as[Int].collect()
-    val artistByID = buildArtistByID(spark, rawArtistData)
+    val artistByID = buildArtistByID(rawArtistData)
     artistByID.join(spark.createDataset(recommendedArtistIDs).toDF("id"), "id").
       select("name").show()
 
@@ -174,8 +168,7 @@ object RunRecommender {
     model.itemFactors.unpersist()
   }
 
-  def buildArtistByID(spark: SparkSession, rawArtistData: Dataset[String]): DataFrame = {
-    import spark.implicits._
+  def buildArtistByID(rawArtistData: Dataset[String]): DataFrame = {
     rawArtistData.flatMap { line =>
       val (id, name) = line.span(_ != '\t')
       if (name.isEmpty) {
@@ -190,8 +183,7 @@ object RunRecommender {
     }.toDF("id", "name")
   }
 
-  def buildArtistAlias(spark: SparkSession, rawArtistAlias: Dataset[String]): Map[Int,Int] = {
-    import spark.implicits._
+  def buildArtistAlias(rawArtistAlias: Dataset[String]): Map[Int,Int] = {
     rawArtistAlias.flatMap { line =>
       val Array(artist, alias) = line.split('\t')
       if (artist.isEmpty) {
@@ -203,10 +195,8 @@ object RunRecommender {
   }
 
   def buildCounts(
-      spark: SparkSession,
       rawUserArtistData: Dataset[String],
       bArtistAlias: Broadcast[Map[Int,Int]]): DataFrame = {
-    import spark.implicits._
     rawUserArtistData.map { line =>
       val Array(userID, artistID, count) = line.split(' ').map(_.toInt)
       val finalArtistID = bArtistAlias.value.getOrElse(artistID, artistID)
@@ -216,22 +206,18 @@ object RunRecommender {
 
   def makeRecommendations(model: ALSModel, userID: Int, howMany: Int): DataFrame = {
     val toRecommend = model.itemFactors.
-      select(col("id").as("artist")).
+      select($"id".as("artist")).
       withColumn("user", lit(userID))
     model.transform(toRecommend).
       select("artist", "prediction").
-      orderBy(col("prediction").desc).
+      orderBy($"prediction".desc).
       limit(howMany)
   }
 
-
   def areaUnderCurve(
-      spark: SparkSession,
       positiveData: DataFrame,
       bAllArtistIDs: Broadcast[Array[Int]],
       predictFunction: (DataFrame => DataFrame)): Double = {
-
-    import spark.implicits._
 
     // What this actually computes is AUC, per user. The result is actually something
     // that might be called "mean AUC".
@@ -246,8 +232,7 @@ object RunRecommender {
 
     // Create a set of "negative" products for each user. These are randomly chosen
     // from among all of the other artists, excluding those that are "positive" for the user.
-    val negativeData = positiveData.select("user", "artist").
-      map(row => (row.getInt(0), row.getInt(1))).
+    val negativeData = positiveData.select("user", "artist").as[(Int,Int)].
       groupByKey { case (user, _) => user }.
       flatMapGroups { case (userID, userIDAndPosArtistIDs) =>
         val random = new Random()
@@ -285,13 +270,13 @@ object RunRecommender {
       select("user", "total")
     // Count the number of correctly ordered pairs per user
     val correctCounts = joinedPredictions.
-      filter(col("positivePrediction") > col("negativePrediction")).
+      filter($"positivePrediction" > $"negativePrediction").
       groupBy("user").agg(count("user").as("correct")).
       select("user", "correct")
 
     // Combine these, compute their ratio, and average over all users
     val meanAUC = allCounts.join(correctCounts, "user").
-      select(col("user"), (col("correct") / col("total")).as("auc")).
+      select($"user", ($"correct" / $"total").as("auc")).
       agg(mean("auc")).
       as[Double].first()
 
@@ -300,7 +285,7 @@ object RunRecommender {
     meanAUC
   }
 
-  def predictMostListened(spark: SparkSession, train: DataFrame)(allData: DataFrame): DataFrame = {
+  def predictMostListened(train: DataFrame)(allData: DataFrame): DataFrame = {
     val listenCounts = train.groupBy("artist").
       agg(sum("count").as("prediction")).
       select("artist", "prediction")
