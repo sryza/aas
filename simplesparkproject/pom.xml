@@ -42,6 +42,7 @@
         <version>3.2.2</version>
         <configuration>
           <scalaVersion>${scala.complete.version}</scalaVersion>
+          <scalaCompatVersion>${scala.minor.version}</scalaCompatVersion>
           <javacArgs>
             <javacArg>-source</javacArg>
             <javacArg>${java.version}</javacArg>
