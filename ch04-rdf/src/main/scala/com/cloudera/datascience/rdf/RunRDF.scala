@@ -6,173 +6,311 @@
 
 package com.cloudera.datascience.rdf
 
+import org.apache.spark.ml.{PipelineModel, Pipeline}
+import org.apache.spark.ml.classification.{DecisionTreeClassifier, RandomForestClassifier,
+  RandomForestClassificationModel}
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
+import org.apache.spark.ml.feature.{VectorAssembler, VectorIndexer}
+import org.apache.spark.ml.linalg.Vector
+import org.apache.spark.ml.tuning.{ParamGridBuilder, TrainValidationSplit}
 import org.apache.spark.mllib.evaluation.MulticlassMetrics
-import org.apache.spark.mllib.linalg.Vectors
-import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.mllib.tree.{RandomForest, DecisionTree}
-import org.apache.spark.mllib.tree.model.DecisionTreeModel
-import org.apache.spark.rdd.RDD
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.functions._
 
 object RunRDF {
 
   def main(args: Array[String]): Unit = {
-    val sc = new SparkContext(new SparkConf().setAppName("RDF"))
-    val rawData = sc.textFile("hdfs:///user/ds/covtype.data")
+    val spark = SparkSession.builder().getOrCreate()
+    import spark.implicits._
 
-    val data = rawData.map { line =>
-      val values = line.split(',').map(_.toDouble)
-      val featureVector = Vectors.dense(values.init)
-      val label = values.last - 1
-      LabeledPoint(label, featureVector)
-    }
+    val dataWithoutHeader = spark.read.
+      option("inferSchema", true).
+      option("header", false).
+      csv("hdfs:///user/ds/covtype.data")
 
-    // Split into 80% train, 10% cross validation, 10% test
-    val Array(trainData, cvData, testData) = data.randomSplit(Array(0.8, 0.1, 0.1))
+    val colNames = Seq(
+        "Elevation", "Aspect", "Slope",
+        "Horizontal_Distance_To_Hydrology", "Vertical_Distance_To_Hydrology",
+        "Horizontal_Distance_To_Roadways",
+        "Hillshade_9am", "Hillshade_Noon", "Hillshade_3pm",
+        "Horizontal_Distance_To_Fire_Points"
+      ) ++ (
+        (0 until 4).map(i => s"Wilderness_Area_$i")
+      ) ++ (
+        (0 until 40).map(i => s"Soil_Type_$i")
+      ) ++ Seq("Cover_Type")
+
+    val data = dataWithoutHeader.toDF(colNames:_*).
+      withColumn("Cover_Type", $"Cover_Type".cast("double"))
+
+    data.show()
+    data.head
+
+    // Split into 90% train (+ CV), 10% test
+    val Array(trainData, testData) = data.randomSplit(Array(0.9, 0.1))
     trainData.cache()
-    cvData.cache()
     testData.cache()
 
-    simpleDecisionTree(trainData, cvData)
-    randomClassifier(trainData, cvData)
-    evaluate(trainData, cvData, testData)
-    evaluateCategorical(rawData)
-    evaluateForest(rawData)
+    val runRDF = new RunRDF(spark)
+
+    runRDF.simpleDecisionTree(trainData, testData)
+    runRDF.randomClassifier(trainData, testData)
+    runRDF.evaluate(trainData, testData)
+    runRDF.evaluateCategorical(trainData, testData)
+    runRDF.evaluateForest(trainData, testData)
 
     trainData.unpersist()
-    cvData.unpersist()
     testData.unpersist()
   }
 
-  def simpleDecisionTree(trainData: RDD[LabeledPoint], cvData: RDD[LabeledPoint]): Unit = {
-    // Build a simple default DecisionTreeModel
-    val model = DecisionTree.trainClassifier(trainData, 7, Map[Int,Int](), "gini", 4, 100)
+}
 
-    val metrics = getMetrics(model, cvData)
+class RunRDF(private val spark: SparkSession) {
 
-    println(metrics.confusionMatrix)
-    println(metrics.accuracy)
+  import spark.implicits._
 
-    (0 until 7).map(
-      category => (metrics.precision(category), metrics.recall(category))
-    ).foreach(println)
+  def simpleDecisionTree(trainData: DataFrame, testData: DataFrame): Unit = {
+
+    val assembler = new VectorAssembler().
+      setInputCols(trainData.columns.filter(_ != "Cover_Type")).
+      setOutputCol("featureVector")
+
+    val classifier = new DecisionTreeClassifier().
+      setLabelCol("Cover_Type").
+      setFeaturesCol("featureVector").
+      setPredictionCol("prediction")
+
+    val model = classifier.fit(assembler.transform(trainData))
+
+    println(model.toDebugString)
+
+    model.featureImportances.toArray.zip(trainData.columns).
+      sorted.reverse.foreach(println)
+
+    val predictions = model.transform(assembler.transform(testData))
+
+    predictions.select("Cover_Type", "prediction", "probability").show()
+
+    val evaluator = new MulticlassClassificationEvaluator().
+      setLabelCol("Cover_Type").
+      setPredictionCol("prediction")
+
+    val accuracy = evaluator.setMetricName("accuracy").evaluate(predictions)
+    val f1 = evaluator.setMetricName("f1").evaluate(predictions)
+    println(accuracy)
+    println(f1)
+
+    val predictionRDD = predictions.
+      select("prediction", "Cover_Type").
+      as[(Double,Double)].rdd
+    val multiclassMetrics = new MulticlassMetrics(predictionRDD)
+    println(multiclassMetrics.confusionMatrix)
+
+    val confusionMatrix = predictions.
+      groupBy("Cover_Type").
+      pivot("prediction", (1 to 7)).
+      count().
+      na.fill(0.0).
+      orderBy("Cover_Type")
+
+    confusionMatrix.show()
   }
 
-  def getMetrics(model: DecisionTreeModel, data: RDD[LabeledPoint]): MulticlassMetrics = {
-    val predictionsAndLabels = data.map(example =>
-      (model.predict(example.features), example.label)
-    )
-    new MulticlassMetrics(predictionsAndLabels)
+  def classProbabilities(data: DataFrame): Array[Double] = {
+    val total = data.count()
+    data.groupBy("Cover_Type").count().
+      orderBy("Cover_Type").
+      select("count").as[Double].
+      map(_ / total).
+      collect()
   }
 
-  def randomClassifier(trainData: RDD[LabeledPoint], cvData: RDD[LabeledPoint]): Unit = {
+  def randomClassifier(trainData: DataFrame, testData: DataFrame): Unit = {
     val trainPriorProbabilities = classProbabilities(trainData)
-    val cvPriorProbabilities = classProbabilities(cvData)
-    val accuracy = trainPriorProbabilities.zip(cvPriorProbabilities).map {
+    val testPriorProbabilities = classProbabilities(testData)
+    val accuracy = trainPriorProbabilities.zip(testPriorProbabilities).map {
       case (trainProb, cvProb) => trainProb * cvProb
     }.sum
     println(accuracy)
   }
 
-  def classProbabilities(data: RDD[LabeledPoint]): Array[Double] = {
-    // Count (category,count) in data
-    val countsByCategory = data.map(_.label).countByValue()
-    // order counts by category and extract counts
-    val counts = countsByCategory.toArray.sortBy(_._1).map(_._2)
-    counts.map(_.toDouble / counts.sum)
+  def evaluate(trainData: DataFrame, testData: DataFrame): Unit = {
+
+    val assembler = new VectorAssembler().
+      setInputCols(trainData.columns.filter(_ != "Cover_Type")).
+      setOutputCol("featureVector")
+
+    val classifier = new DecisionTreeClassifier().
+      setLabelCol("Cover_Type").
+      setFeaturesCol("featureVector").
+      setPredictionCol("prediction")
+
+    val pipeline = new Pipeline().setStages(Array(assembler, classifier))
+
+    val paramGrid = new ParamGridBuilder().
+      addGrid(classifier.impurity, Seq("gini", "entropy")).
+      addGrid(classifier.maxDepth, Seq(1, 20)).
+      addGrid(classifier.maxBins, Seq(40, 300)).
+      addGrid(classifier.minInfoGain, Seq(0.0, 0.05)).
+      build()
+
+    val multiclassEval = new MulticlassClassificationEvaluator().
+      setLabelCol("Cover_Type").
+      setPredictionCol("prediction").
+      setMetricName("accuracy")
+
+    val validator = new TrainValidationSplit().
+      setEstimator(pipeline).
+      setEvaluator(multiclassEval).
+      setEstimatorParamMaps(paramGrid).
+      setTrainRatio(0.9)
+
+    //spark.sparkContext.setLogLevel("DEBUG")
+    /*
+    DEBUG TrainValidationSplit: Got metric 0.6315930234779452 for model trained with {
+      dtc_ca0f064d06dd-impurity: gini,
+      dtc_ca0f064d06dd-maxBins: 10,
+      dtc_ca0f064d06dd-maxDepth: 1,
+      dtc_ca0f064d06dd-minInfoGain: 0.0
+    }.
+    */
+    val validatorModel = validator.fit(trainData)
+    //spark.sparkContext.setLogLevel("WARN")
+
+    val bestModel = validatorModel.bestModel
+
+    println(bestModel.asInstanceOf[PipelineModel].stages(1).extractParamMap)
+
+    val testAccuracy = multiclassEval.evaluate(bestModel.transform(testData))
+    println(testAccuracy)
   }
 
-  def evaluate(
-      trainData: RDD[LabeledPoint],
-      cvData: RDD[LabeledPoint],
-      testData: RDD[LabeledPoint]): Unit = {
+  def unencodeOneHot(data: DataFrame): DataFrame = {
 
-    val evaluations =
-      for (impurity <- Array("gini", "entropy");
-           depth    <- Array(1, 20);
-           bins     <- Array(10, 300))
-        yield {
-          val model = DecisionTree.trainClassifier(
-            trainData, 7, Map[Int,Int](), impurity, depth, bins)
-          val accuracy = getMetrics(model, cvData).accuracy
-          ((impurity, depth, bins), accuracy)
-        }
+    val wildernessCols = (0 until 4).map(i => s"Wilderness_Area_$i").toArray
 
-    evaluations.sortBy(_._2).reverse.foreach(println)
+    val wildernessAssembler = new VectorAssembler().
+      setInputCols(wildernessCols).
+      setOutputCol("wilderness")
 
-    val model = DecisionTree.trainClassifier(
-      trainData.union(cvData), 7, Map[Int,Int](), "entropy", 20, 300)
-    println(getMetrics(model, testData).accuracy)
-    println(getMetrics(model, trainData.union(cvData)).accuracy)
+    val unhotUDF = udf((vec: Vector) => vec.toArray.indexOf(1.0).toDouble)
+
+    val withWilderness = wildernessAssembler.transform(data).
+      drop(wildernessCols:_*).
+      withColumn("wilderness", unhotUDF($"wilderness"))
+
+    val soilCols = (0 until 40).map(i => s"Soil_Type_$i").toArray
+
+    val soilAssembler = new VectorAssembler().
+      setInputCols(soilCols).
+      setOutputCol("soil")
+
+    soilAssembler.transform(withWilderness).
+      drop(soilCols:_*).
+      withColumn("soil", unhotUDF($"soil"))
   }
 
-  def unencodeOneHot(rawData: RDD[String]): RDD[LabeledPoint] = {
-    rawData.map { line =>
-      val values = line.split(',').map(_.toDouble)
-      // Which of 4 "wilderness" features is 1
-      val wilderness = values.slice(10, 14).indexOf(1.0).toDouble
-      // Similarly for following 40 "soil" features
-      val soil = values.slice(14, 54).indexOf(1.0).toDouble
-      // Add derived features back to first 10
-      val featureVector = Vectors.dense(values.slice(0, 10) :+ wilderness :+ soil)
-      val label = values.last - 1
-      LabeledPoint(label, featureVector)
-    }
+  def evaluateCategorical(encodedTrainData: DataFrame, encodedTestData: DataFrame): Unit = {
+    val trainData = unencodeOneHot(encodedTrainData)
+    val testData = unencodeOneHot(encodedTestData)
+
+    val assembler = new VectorAssembler().
+      setInputCols(trainData.columns.filter(_ != "Cover_Type")).
+      setOutputCol("featureVector")
+
+    val indexer = new VectorIndexer().
+      setMaxCategories(40).
+      setInputCol("featureVector").
+      setOutputCol("indexedVector")
+
+    val classifier = new DecisionTreeClassifier().
+      setLabelCol("Cover_Type").
+      setFeaturesCol("indexedVector").
+      setPredictionCol("prediction")
+
+    val pipeline = new Pipeline().setStages(Array(assembler, indexer, classifier))
+
+    val paramGrid = new ParamGridBuilder().
+      addGrid(classifier.impurity, Seq("gini", "entropy")).
+      addGrid(classifier.maxDepth, Seq(1, 20)).
+      addGrid(classifier.maxBins, Seq(40, 300)).
+      addGrid(classifier.minInfoGain, Seq(0.0, 0.05)).
+      build()
+
+    val multiclassEval = new MulticlassClassificationEvaluator().
+      setLabelCol("Cover_Type").
+      setPredictionCol("prediction").
+      setMetricName("accuracy")
+
+    val validator = new TrainValidationSplit().
+      setEstimator(pipeline).
+      setEvaluator(multiclassEval).
+      setEstimatorParamMaps(paramGrid).
+      setTrainRatio(0.9)
+
+    val validatorModel = validator.fit(trainData)
+
+    val bestModel = validatorModel.bestModel
+
+    println(bestModel.asInstanceOf[PipelineModel].stages(1).extractParamMap)
+
+    val testAccuracy = multiclassEval.evaluate(bestModel.transform(testData))
+    println(testAccuracy)
   }
-  
-  def evaluateCategorical(rawData: RDD[String]): Unit = {
-    
-    val data = unencodeOneHot(rawData)
 
-    val Array(trainData, cvData, testData) = data.randomSplit(Array(0.8, 0.1, 0.1))
-    trainData.cache()
-    cvData.cache()
-    testData.cache()
+  def evaluateForest(encodedTrainData: DataFrame, encodedTestData: DataFrame): Unit = {
+    val trainData = unencodeOneHot(encodedTrainData)
+    val testData = unencodeOneHot(encodedTestData)
 
-    val evaluations =
-      for (impurity <- Array("gini", "entropy");
-           depth    <- Array(10, 20, 30);
-           bins     <- Array(40, 300))
-      yield {
-        // Specify value count for categorical features 10, 11
-        val model = DecisionTree.trainClassifier(
-          trainData, 7, Map(10 -> 4, 11 -> 40), impurity, depth, bins)
-        val trainAccuracy = getMetrics(model, trainData).accuracy
-        val cvAccuracy = getMetrics(model, cvData).accuracy
-        // Return train and CV accuracy
-        ((impurity, depth, bins), (trainAccuracy, cvAccuracy))
-      }
+    val assembler = new VectorAssembler().
+      setInputCols(trainData.columns.filter(_ != "Cover_Type")).
+      setOutputCol("featureVector")
 
-    evaluations.sortBy(_._2._2).reverse.foreach(println)
+    val indexer = new VectorIndexer().
+      setMaxCategories(40).
+      setInputCol("featureVector").
+      setOutputCol("indexedVector")
 
-    val model = DecisionTree.trainClassifier(
-      trainData.union(cvData), 7, Map(10 -> 4, 11 -> 40), "entropy", 30, 300)
-    println(getMetrics(model, testData).accuracy)
+    val classifier = new RandomForestClassifier().
+      setLabelCol("Cover_Type").
+      setFeaturesCol("indexedVector").
+      setPredictionCol("prediction").
+      setImpurity("entropy").
+      setMaxDepth(20).
+      setMaxBins(300)
 
-    trainData.unpersist()
-    cvData.unpersist()
-    testData.unpersist()
-  }
+    val pipeline = new Pipeline().setStages(Array(assembler, indexer, classifier))
 
-  def evaluateForest(rawData: RDD[String]): Unit = {
+    val paramGrid = new ParamGridBuilder().
+      addGrid(classifier.minInfoGain, Seq(0.0, 0.05)).
+      addGrid(classifier.numTrees, Seq(1, 10)).
+      build()
 
-    val data = unencodeOneHot(rawData)
+    val multiclassEval = new MulticlassClassificationEvaluator().
+      setLabelCol("Cover_Type").
+      setPredictionCol("prediction").
+      setMetricName("accuracy")
 
-    val Array(trainData, cvData) = data.randomSplit(Array(0.9, 0.1))
-    trainData.cache()
-    cvData.cache()
+    val validator = new TrainValidationSplit().
+      setEstimator(pipeline).
+      setEvaluator(multiclassEval).
+      setEstimatorParamMaps(paramGrid).
+      setTrainRatio(0.9)
 
-    val forest = RandomForest.trainClassifier(
-      trainData, 7, Map(10 -> 4, 11 -> 40), 20, "auto", "entropy", 30, 300)
+    val validatorModel = validator.fit(trainData)
 
-    val predictionsAndLabels = cvData.map(example =>
-      (forest.predict(example.features), example.label)
-    )
-    println(new MulticlassMetrics(predictionsAndLabels).accuracy)
+    val bestModel = validatorModel.bestModel
 
-    val input = "2709,125,28,67,23,3224,253,207,61,6094,0,29"
-    val vector = Vectors.dense(input.split(',').map(_.toDouble))
-    println(forest.predict(vector))
+    val forestModel = bestModel.asInstanceOf[PipelineModel].
+      stages(2).asInstanceOf[RandomForestClassificationModel]
+
+    println(forestModel.extractParamMap)
+    println(forestModel.getNumTrees)
+    forestModel.featureImportances.toArray.zip(trainData.columns).
+     sorted.reverse.foreach(println)
+
+    val testAccuracy = multiclassEval.evaluate(bestModel.transform(testData))
+    println(testAccuracy)
   }
 
 }
