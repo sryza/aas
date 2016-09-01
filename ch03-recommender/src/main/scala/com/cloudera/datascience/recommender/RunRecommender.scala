@@ -67,9 +67,14 @@ class RunRecommender(private val spark: SparkSession) {
 
     val model = new ALS().
       setImplicitPrefs(true).
-      setRank(10).setRegParam(0.01).setAlpha(1.0).setMaxIter(5).
-      setUserCol("user").setItemCol("artist").
-      setRatingCol("count").setPredictionCol("prediction").
+      setRank(10).
+      setRegParam(0.01).
+      setAlpha(1.0).
+      setMaxIter(5).
+      setUserCol("user").
+      setItemCol("artist").
+      setRatingCol("count").
+      setPredictionCol("prediction").
       fit(trainData)
 
     trainData.unpersist()
