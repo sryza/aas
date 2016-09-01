@@ -45,7 +45,7 @@ object RunTFPrediction {
       // collect into local in-memory structure for broadcasting
       .collect().toMap)
 
-    // CTCF PWM from http://dx.doi.org/10.1016/j.cell.2012.12.009
+    // CTCF PWM from https://dx.doi.org/10.1016/j.cell.2012.12.009
     // generated with genomics/src/main/python/pwm.py
     val bPwmData = sc.broadcast(Vector(
       Map('A'->0.4553,'C'->0.0459,'G'->0.1455,'T'->0.3533),

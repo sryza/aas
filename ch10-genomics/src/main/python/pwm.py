@@ -4,7 +4,7 @@
 #
 # See LICENSE file for further information.
 
-# CTCF PWM from suppl. to  http://dx.doi.org/10.1016/j.cell.2012.12.009
+# CTCF PWM from suppl. to  https://dx.doi.org/10.1016/j.cell.2012.12.009
 
 import numpy as np
 import pandas as pd
