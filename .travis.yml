@@ -1,7 +1,9 @@
 language: java
 sudo: false
 install: echo "Skipping install"
-script: mvn -Dmaven.javadoc.skip=true -B clean compile
+script:
+  - mvn -Dmaven.javadoc.skip=true -B clean compile
+  - rm -r $HOME/.m2/repository/com/cloudera
 matrix:
  include:
    # Covers Spark 2.0
