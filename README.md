@@ -2,11 +2,21 @@ Advanced Analytics with Spark Source Code
 =========================================
 
 Code to accompany [Advanced Analytics with Spark](http://shop.oreilly.com/product/0636920035091.do), 
-2nd edition, by [Sandy Ryza](https://github.com/sryza), [Juliet Hougland](https://github.com/jhlch),
+by [Sandy Ryza](https://github.com/sryza), [Juliet Hougland](https://github.com/jhlch),
 [Uri Laserson](https://github.com/laserson), 
 [Sean Owen](https://github.com/srowen), and [Josh Wills](https://github.com/jwills).
 
 [![Advanced Analytics with Spark](http://akamaicovers.oreilly.com/images/0636920035091/lrg.jpg)](http://shop.oreilly.com/product/0636920035091.do)
+
+### 1st Edition (current)
+
+The source to accompany the 1st edition may be found in the 
+[`1st-edition` branch](https://github.com/sryza/aas/tree/1st-edition).
+
+### 2nd Edition (coming H1 2017)
+
+The source to accompany the 2nd edition is found in this, the default 
+[`master` branch](https://github.com/sryza/aas).
 
 ### Build
 
