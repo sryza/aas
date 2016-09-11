@@ -136,13 +136,6 @@
 
   <url>https://github.com/sryza/aas</url>
   <inceptionYear>2014</inceptionYear>
-  <licenses>
-    <license>
-      <name>The Apache Software License, Version 2.0</name>
-      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
   <developers>
     <developer>
       <id>sryza</id>
@@ -177,8 +170,8 @@
   </issueManagement>
   <scm>
     <connection>scm:git:https://github.com/sryza/aas.git</connection>
-    <url>scm:git:https://github.com/sryza/aas.git</url>
     <developerConnection>scm:git:https://github.com/sryza/aas.git</developerConnection>
+    <url>https://github.com/sryza/aas</url>
     <tag>HEAD</tag>
   </scm>
 
