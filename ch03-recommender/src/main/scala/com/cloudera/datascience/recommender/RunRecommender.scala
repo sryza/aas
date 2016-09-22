@@ -66,6 +66,7 @@ class RunRecommender(private val spark: SparkSession) {
     val trainData = buildCounts(rawUserArtistData, bArtistAlias).cache()
 
     val model = new ALS().
+      setSeed(Random.nextLong()).
       setImplicitPrefs(true).
       setRank(10).
       setRegParam(0.01).
@@ -125,6 +126,7 @@ class RunRecommender(private val spark: SparkSession) {
            alpha    <- Seq(1.0, 40.0))
       yield {
         val model = new ALS().
+          setSeed(Random.nextLong()).
           setImplicitPrefs(true).
           setRank(rank).setRegParam(regParam).
           setAlpha(alpha).setMaxIter(20).
@@ -154,6 +156,7 @@ class RunRecommender(private val spark: SparkSession) {
     val bArtistAlias = spark.sparkContext.broadcast(buildArtistAlias(rawArtistAlias))
     val allData = buildCounts(rawUserArtistData, bArtistAlias).cache()
     val model = new ALS().
+      setSeed(Random.nextLong()).
       setImplicitPrefs(true).
       setRank(10).setRegParam(1.0).setAlpha(40.0).setMaxIter(20).
       setUserCol("user").setItemCol("artist").

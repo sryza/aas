@@ -16,6 +16,7 @@ import org.apache.spark.ml.tuning.{ParamGridBuilder, TrainValidationSplit}
 import org.apache.spark.mllib.evaluation.MulticlassMetrics
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions._
+import scala.util.Random
 
 object RunRDF {
 
@@ -79,6 +80,7 @@ class RunRDF(private val spark: SparkSession) {
     assembledTrainData.select("featureVector").show(truncate = false)
 
     val classifier = new DecisionTreeClassifier().
+      setSeed(Random.nextLong()).
       setLabelCol("Cover_Type").
       setFeaturesCol("featureVector").
       setPredictionCol("prediction")
@@ -144,6 +146,7 @@ class RunRDF(private val spark: SparkSession) {
       setOutputCol("featureVector")
 
     val classifier = new DecisionTreeClassifier().
+      setSeed(Random.nextLong()).
       setLabelCol("Cover_Type").
       setFeaturesCol("featureVector").
       setPredictionCol("prediction")
@@ -163,6 +166,7 @@ class RunRDF(private val spark: SparkSession) {
       setMetricName("accuracy")
 
     val validator = new TrainValidationSplit().
+      setSeed(Random.nextLong()).
       setEstimator(pipeline).
       setEvaluator(multiclassEval).
       setEstimatorParamMaps(paramGrid).
@@ -231,6 +235,7 @@ class RunRDF(private val spark: SparkSession) {
       setOutputCol("indexedVector")
 
     val classifier = new DecisionTreeClassifier().
+      setSeed(Random.nextLong()).
       setLabelCol("Cover_Type").
       setFeaturesCol("indexedVector").
       setPredictionCol("prediction")
@@ -250,6 +255,7 @@ class RunRDF(private val spark: SparkSession) {
       setMetricName("accuracy")
 
     val validator = new TrainValidationSplit().
+      setSeed(Random.nextLong()).
       setEstimator(pipeline).
       setEvaluator(multiclassEval).
       setEstimatorParamMaps(paramGrid).
@@ -279,6 +285,7 @@ class RunRDF(private val spark: SparkSession) {
       setOutputCol("indexedVector")
 
     val classifier = new RandomForestClassifier().
+      setSeed(Random.nextLong()).
       setLabelCol("Cover_Type").
       setFeaturesCol("indexedVector").
       setPredictionCol("prediction").
@@ -299,6 +306,7 @@ class RunRDF(private val spark: SparkSession) {
       setMetricName("accuracy")
 
     val validator = new TrainValidationSplit().
+      setSeed(Random.nextLong()).
       setEstimator(pipeline).
       setEvaluator(multiclassEval).
       setEstimatorParamMaps(paramGrid).
