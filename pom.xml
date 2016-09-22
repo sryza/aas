@@ -138,11 +138,6 @@
   <inceptionYear>2014</inceptionYear>
   <developers>
     <developer>
-      <id>sryza</id>
-      <name>Sandy Ryza</name>
-      <organization>Clover Health</organization>
-    </developer>
-    <developer>
       <id>jhlch</id>
       <name>Juliet Hougland</name>
       <organization>Cloudera</organization>
@@ -156,6 +151,11 @@
       <id>srowen</id>
       <name>Sean Owen</name>
       <organization>Cloudera</organization>
+    </developer>
+    <developer>
+      <id>sryza</id>
+      <name>Sandy Ryza</name>
+      <organization>Clover Health</organization>
     </developer>
     <developer>
       <id>jwills</id>
