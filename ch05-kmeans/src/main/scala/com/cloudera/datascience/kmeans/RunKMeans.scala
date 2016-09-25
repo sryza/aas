@@ -6,295 +6,318 @@
 
 package com.cloudera.datascience.kmeans
 
-import org.apache.spark.mllib.clustering._
-import org.apache.spark.mllib.linalg._
-import org.apache.spark.rdd._
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.SparkContext._
+import org.apache.spark.ml.{PipelineModel, Pipeline}
+import org.apache.spark.ml.clustering.{KMeans, KMeansModel}
+import org.apache.spark.ml.feature.{OneHotEncoder, VectorAssembler, StringIndexer, StandardScaler}
+import org.apache.spark.ml.linalg.{Vector, Vectors}
+import org.apache.spark.sql.{DataFrame, SparkSession}
+import scala.util.Random
 
 object RunKMeans {
 
   def main(args: Array[String]): Unit = {
-    val sc = new SparkContext(new SparkConf().setAppName("K-means"))
-    val rawData = sc.textFile("hdfs:///user/ds/kddcup.data")
-    clusteringTake0(rawData)
-    clusteringTake1(rawData)
-    clusteringTake2(rawData)
-    clusteringTake3(rawData)
-    clusteringTake4(rawData)
-    anomalies(rawData)
+    val spark = SparkSession.builder().getOrCreate()
+
+    val data = spark.read.
+      option("inferSchema", true).
+      option("header", false).
+      csv("hdfs:///user/ds/kddcup.data").
+      toDF(
+        "duration", "protocol_type", "service", "flag",
+        "src_bytes", "dst_bytes", "land", "wrong_fragment", "urgent",
+        "hot", "num_failed_logins", "logged_in", "num_compromised",
+        "root_shell", "su_attempted", "num_root", "num_file_creations",
+        "num_shells", "num_access_files", "num_outbound_cmds",
+        "is_host_login", "is_guest_login", "count", "srv_count",
+        "serror_rate", "srv_serror_rate", "rerror_rate", "srv_rerror_rate",
+        "same_srv_rate", "diff_srv_rate", "srv_diff_host_rate",
+        "dst_host_count", "dst_host_srv_count",
+        "dst_host_same_srv_rate", "dst_host_diff_srv_rate",
+        "dst_host_same_src_port_rate", "dst_host_srv_diff_host_rate",
+        "dst_host_serror_rate", "dst_host_srv_serror_rate",
+        "dst_host_rerror_rate", "dst_host_srv_rerror_rate",
+        "label")
+
+    data.cache()
+
+    val runKMeans = new RunKMeans(spark)
+
+    runKMeans.clusteringTake0(data)
+    runKMeans.clusteringTake1(data)
+    runKMeans.clusteringTake2(data)
+    runKMeans.clusteringTake3(data)
+    runKMeans.clusteringTake4(data)
+    runKMeans.buildAnomalyDetector(data)
+
+    data.unpersist()
   }
+
+}
+
+class RunKMeans(private val spark: SparkSession) {
+
+  import spark.implicits._
 
   // Clustering, Take 0
 
-  def clusteringTake0(rawData: RDD[String]): Unit = {
+  def clusteringTake0(data: DataFrame): Unit = {
 
-    rawData.map(_.split(',').last).countByValue().toSeq.sortBy(_._2).reverse.foreach(println)
+    data.select("label").groupBy("label").count().orderBy($"count".desc).show(25)
 
-    val labelsAndData = rawData.map { line =>
-      val buffer = line.split(',').toBuffer
-      buffer.remove(1, 3)
-      val label = buffer.remove(buffer.length - 1)
-      val vector = Vectors.dense(buffer.map(_.toDouble).toArray)
-      (label, vector)
-    }
+    val numericOnly = data.drop("protocol_type", "service", "flag").cache()
 
-    val data = labelsAndData.values.cache()
+    val assembler = new VectorAssembler().
+      setInputCols(numericOnly.columns.filter(_ != "label")).
+      setOutputCol("featureVector")
 
-    val kmeans = new KMeans()
-    val model = kmeans.run(data)
+    val kmeans = new KMeans().
+      setSeed(Random.nextLong()).
+      setPredictionCol("cluster").
+      setFeaturesCol("featureVector")
 
-    model.clusterCenters.foreach(println)
+    val pipeline = new Pipeline().setStages(Array(assembler, kmeans))
+    val pipelineModel = pipeline.fit(numericOnly)
+    val kmeansModel = pipelineModel.stages.last.asInstanceOf[KMeansModel]
 
-    val clusterLabelCount = labelsAndData.map { case (label, datum) =>
-      val cluster = model.predict(datum)
-      (cluster, label)
-    }.countByValue()
+    kmeansModel.clusterCenters.foreach(println)
 
-    clusterLabelCount.toSeq.sorted.foreach { case ((cluster, label), count) =>
-      println(f"$cluster%1s$label%18s$count%8s")
-    }
+    val withCluster = pipelineModel.transform(numericOnly)
 
-    data.unpersist()
+    withCluster.select("cluster", "label").
+      groupBy("cluster", "label").count().
+      orderBy($"cluster", $"count".desc).
+      show(25)
+
+    numericOnly.unpersist()
   }
 
   // Clustering, Take 1
 
-  def distance(a: Vector, b: Vector) =
-    math.sqrt(a.toArray.zip(b.toArray).map(p => p._1 - p._2).map(d => d * d).sum)
+  def clusteringScore0(data: DataFrame, k: Int): Double = {
+    val assembler = new VectorAssembler().
+      setInputCols(data.columns.filter(_ != "label")).
+      setOutputCol("featureVector")
 
-  def distToCentroid(datum: Vector, model: KMeansModel) = {
-    val cluster = model.predict(datum)
-    val centroid = model.clusterCenters(cluster)
-    distance(centroid, datum)
+    val kmeans = new KMeans().
+      setSeed(Random.nextLong()).
+      setK(k).
+      setPredictionCol("cluster").
+      setFeaturesCol("featureVector")
+
+    val pipeline = new Pipeline().setStages(Array(assembler, kmeans))
+
+    val kmeansModel = pipeline.fit(data).stages.last.asInstanceOf[KMeansModel]
+    kmeansModel.computeCost(assembler.transform(data)) / data.count()
   }
 
-  def clusteringScore(data: RDD[Vector], k: Int): Double = {
-    val kmeans = new KMeans()
-    kmeans.setK(k)
-    val model = kmeans.run(data)
-    data.map(datum => distToCentroid(datum, model)).mean()
+  def clusteringScore1(data: DataFrame, k: Int): Double = {
+    val assembler = new VectorAssembler().
+      setInputCols(data.columns.filter(_ != "label")).
+      setOutputCol("featureVector")
+
+    val kmeans = new KMeans().
+      setSeed(Random.nextLong()).
+      setK(k).
+      setPredictionCol("cluster").
+      setFeaturesCol("featureVector").
+      setMaxIter(40).
+      setTol(1.0e-5)
+
+    val pipeline = new Pipeline().setStages(Array(assembler, kmeans))
+
+    val kmeansModel = pipeline.fit(data).stages.last.asInstanceOf[KMeansModel]
+    kmeansModel.computeCost(assembler.transform(data)) / data.count()
   }
 
-  def clusteringScore2(data: RDD[Vector], k: Int): Double = {
-    val kmeans = new KMeans()
-    kmeans.setK(k)
-    kmeans.setRuns(10)
-    kmeans.setEpsilon(1.0e-6)
-    val model = kmeans.run(data)
-    data.map(datum => distToCentroid(datum, model)).mean()
-  }
-
-  def clusteringTake1(rawData: RDD[String]): Unit = {
-
-    val data = rawData.map { line =>
-      val buffer = line.split(',').toBuffer
-      buffer.remove(1, 3)
-      buffer.remove(buffer.length - 1)
-      Vectors.dense(buffer.map(_.toDouble).toArray)
-    }.cache()
-
-    (5 to 30 by 5).map(k => (k, clusteringScore(data, k))).
-      foreach(println)
-
-    (30 to 100 by 10).par.map(k => (k, clusteringScore2(data, k))).
-      toList.foreach(println)
-
-    data.unpersist()
-
-  }
-
-  def visualizationInR(rawData: RDD[String]): Unit = {
-
-    val data = rawData.map { line =>
-      val buffer = line.split(',').toBuffer
-      buffer.remove(1, 3)
-      buffer.remove(buffer.length - 1)
-      Vectors.dense(buffer.map(_.toDouble).toArray)
-    }.cache()
-
-    val kmeans = new KMeans()
-    kmeans.setK(100)
-    kmeans.setRuns(10)
-    kmeans.setEpsilon(1.0e-6)
-    val model = kmeans.run(data)
-
-    val sample = data.map(datum =>
-      model.predict(datum) + "," + datum.toArray.mkString(",")
-    ).sample(false, 0.05)
-
-    sample.saveAsTextFile("hdfs:///user/ds/sample")
-
-    data.unpersist()
-
+  def clusteringTake1(data: DataFrame): Unit = {
+    val numericOnly = data.drop("protocol_type", "service", "flag").cache()
+    (20 to 100 by 20).map(k => (k, clusteringScore0(numericOnly, k))).foreach(println)
+    (20 to 100 by 20).map(k => (k, clusteringScore1(numericOnly, k))).foreach(println)
+    numericOnly.unpersist()
   }
 
   // Clustering, Take 2
 
-  def buildNormalizationFunction(data: RDD[Vector]): (Vector => Vector) = {
-    val dataAsArray = data.map(_.toArray)
-    val numCols = dataAsArray.first().length
-    val n = dataAsArray.count()
-    val sums = dataAsArray.reduce(
-      (a, b) => a.zip(b).map(t => t._1 + t._2))
-    val sumSquares = dataAsArray.aggregate(
-        new Array[Double](numCols)
-      )(
-        (a, b) => a.zip(b).map(t => t._1 + t._2 * t._2),
-        (a, b) => a.zip(b).map(t => t._1 + t._2)
-      )
-    val stdevs = sumSquares.zip(sums).map {
-      case (sumSq, sum) => math.sqrt(n * sumSq - sum * sum) / n
-    }
-    val means = sums.map(_ / n)
+  def clusteringScore2(data: DataFrame, k: Int): Double = {
+    val assembler = new VectorAssembler().
+      setInputCols(data.columns.filter(_ != "label")).
+      setOutputCol("featureVector")
 
-    (datum: Vector) => {
-      val normalizedArray = (datum.toArray, means, stdevs).zipped.map(
-        (value, mean, stdev) =>
-          if (stdev <= 0)  (value - mean) else  (value - mean) / stdev
-      )
-      Vectors.dense(normalizedArray)
-    }
+    val scaler = new StandardScaler()
+      .setInputCol("featureVector")
+      .setOutputCol("scaledFeatureVector")
+      .setWithStd(true)
+      .setWithMean(false)
+
+    val kmeans = new KMeans().
+      setSeed(Random.nextLong()).
+      setK(k).
+      setPredictionCol("cluster").
+      setFeaturesCol("scaledFeatureVector").
+      setMaxIter(40).
+      setTol(1.0e-5)
+
+    val pipeline = new Pipeline().setStages(Array(assembler, scaler, kmeans))
+    val pipelineModel = pipeline.fit(data)
+
+    val kmeansModel = pipelineModel.stages.last.asInstanceOf[KMeansModel]
+    kmeansModel.computeCost(pipelineModel.transform(data)) / data.count()
   }
 
-  def clusteringTake2(rawData: RDD[String]): Unit = {
-    val data = rawData.map { line =>
-      val buffer = line.split(',').toBuffer
-      buffer.remove(1, 3)
-      buffer.remove(buffer.length - 1)
-      Vectors.dense(buffer.map(_.toDouble).toArray)
-    }
-
-    val normalizedData = data.map(buildNormalizationFunction(data)).cache()
-
-    (60 to 120 by 10).par.map(k =>
-      (k, clusteringScore2(normalizedData, k))).toList.foreach(println)
-
-    normalizedData.unpersist()
+  def clusteringTake2(data: DataFrame): Unit = {
+    val numericOnly = data.drop("protocol_type", "service", "flag").cache()
+    (60 to 270 by 30).map(k => (k, clusteringScore2(numericOnly, k))).foreach(println)
+    numericOnly.unpersist()
   }
 
   // Clustering, Take 3
 
-  def buildCategoricalAndLabelFunction(rawData: RDD[String]): (String => (String,Vector)) = {
-    val splitData = rawData.map(_.split(','))
-    val protocols = splitData.map(_(1)).distinct().collect().zipWithIndex.toMap
-    val services = splitData.map(_(2)).distinct().collect().zipWithIndex.toMap
-    val tcpStates = splitData.map(_(3)).distinct().collect().zipWithIndex.toMap
-    (line: String) => {
-      val buffer = line.split(',').toBuffer
-      val protocol = buffer.remove(1)
-      val service = buffer.remove(1)
-      val tcpState = buffer.remove(1)
-      val label = buffer.remove(buffer.length - 1)
-      val vector = buffer.map(_.toDouble)
-
-      val newProtocolFeatures = new Array[Double](protocols.size)
-      newProtocolFeatures(protocols(protocol)) = 1.0
-      val newServiceFeatures = new Array[Double](services.size)
-      newServiceFeatures(services(service)) = 1.0
-      val newTcpStateFeatures = new Array[Double](tcpStates.size)
-      newTcpStateFeatures(tcpStates(tcpState)) = 1.0
-
-      vector.insertAll(1, newTcpStateFeatures)
-      vector.insertAll(1, newServiceFeatures)
-      vector.insertAll(1, newProtocolFeatures)
-
-      (label, Vectors.dense(vector.toArray))
-    }
+  def oneHotPipeline(inputCol: String): (Pipeline, String) = {
+    val indexer = new StringIndexer().
+      setInputCol(inputCol).
+      setOutputCol(inputCol + "_indexed")
+    val encoder = new OneHotEncoder().
+      setInputCol(inputCol + "_indexed").
+      setOutputCol(inputCol + "_vec")
+    val pipeline = new Pipeline().setStages(Array(indexer, encoder))
+    (pipeline, inputCol + "_vec")
   }
 
-  def clusteringTake3(rawData: RDD[String]): Unit = {
-    val parseFunction = buildCategoricalAndLabelFunction(rawData)
-    val data = rawData.map(parseFunction).values
-    val normalizedData = data.map(buildNormalizationFunction(data)).cache()
+  def clusteringScore3(data: DataFrame, k: Int): Double = {
+    val (protoTypeEncoder, protoTypeVecCol) = oneHotPipeline("protocol_type")
+    val (serviceEncoder, serviceVecCol) = oneHotPipeline("service")
+    val (flagEncoder, flagVecCol) = oneHotPipeline("flag")
 
-    (80 to 160 by 10).map(k =>
-      (k, clusteringScore2(normalizedData, k))).toList.foreach(println)
+    // Original columns, without label / string columns, but with new vector encoded cols
+    val assembleCols = Set(data.columns: _*) --
+      Seq("label", "protocol_type", "service", "flag") ++
+      Seq(protoTypeVecCol, serviceVecCol, flagVecCol)
+    val assembler = new VectorAssembler().
+      setInputCols(assembleCols.toArray).
+      setOutputCol("featureVector")
 
-    normalizedData.unpersist()
+    val scaler = new StandardScaler()
+      .setInputCol("featureVector")
+      .setOutputCol("scaledFeatureVector")
+      .setWithStd(true)
+      .setWithMean(false)
+
+    val kmeans = new KMeans().
+      setSeed(Random.nextLong()).
+      setK(k).
+      setPredictionCol("cluster").
+      setFeaturesCol("scaledFeatureVector").
+      setMaxIter(40).
+      setTol(1.0e-5)
+
+    val pipeline = new Pipeline().setStages(
+      Array(protoTypeEncoder, serviceEncoder, flagEncoder, assembler, scaler, kmeans))
+    val pipelineModel = pipeline.fit(data)
+
+    val kmeansModel = pipelineModel.stages.last.asInstanceOf[KMeansModel]
+    kmeansModel.computeCost(pipelineModel.transform(data)) / data.count()
+  }
+
+  def clusteringTake3(data: DataFrame): Unit = {
+    (60 to 270 by 30).map(k => (k, clusteringScore3(data, k))).foreach(println)
   }
 
   // Clustering, Take 4
 
-  def entropy(counts: Iterable[Int]) = {
+  def entropy(counts: Iterable[Int]): Double = {
     val values = counts.filter(_ > 0)
-    val n: Double = values.sum
+    val n = values.map(_.toDouble).sum
     values.map { v =>
       val p = v / n
       -p * math.log(p)
     }.sum
   }
 
-  def clusteringScore3(normalizedLabelsAndData: RDD[(String,Vector)], k: Int) = {
-    val kmeans = new KMeans()
-    kmeans.setK(k)
-    kmeans.setRuns(10)
-    kmeans.setEpsilon(1.0e-6)
+  def fitPipeline4(data: DataFrame, k: Int): PipelineModel = {
+    val (protoTypeEncoder, protoTypeVecCol) = oneHotPipeline("protocol_type")
+    val (serviceEncoder, serviceVecCol) = oneHotPipeline("service")
+    val (flagEncoder, flagVecCol) = oneHotPipeline("flag")
 
-    val model = kmeans.run(normalizedLabelsAndData.values)
+    // Original columns, without label / string columns, but with new vector encoded cols
+    val assembleCols = Set(data.columns: _*) --
+      Seq("label", "protocol_type", "service", "flag") ++
+      Seq(protoTypeVecCol, serviceVecCol, flagVecCol)
+    val assembler = new VectorAssembler().
+      setInputCols(assembleCols.toArray).
+      setOutputCol("featureVector")
 
-    // Predict cluster for each datum
-    val labelsAndClusters = normalizedLabelsAndData.mapValues(model.predict)
+    val scaler = new StandardScaler()
+      .setInputCol("featureVector")
+      .setOutputCol("scaledFeatureVector")
+      .setWithStd(true)
+      .setWithMean(false)
 
-    // Swap keys / values
-    val clustersAndLabels = labelsAndClusters.map(_.swap)
+    val kmeans = new KMeans().
+      setSeed(Random.nextLong()).
+      setK(k).
+      setPredictionCol("cluster").
+      setFeaturesCol("scaledFeatureVector").
+      setMaxIter(40).
+      setTol(1.0e-5)
 
-    // Extract collections of labels, per cluster
-    val labelsInCluster = clustersAndLabels.groupByKey().values
-
-    // Count labels in collections
-    val labelCounts = labelsInCluster.map(_.groupBy(l => l).map(_._2.size))
-
-    // Average entropy weighted by cluster size
-    val n = normalizedLabelsAndData.count()
-
-    labelCounts.map(m => m.sum * entropy(m)).sum / n
+    val pipeline = new Pipeline().setStages(
+      Array(protoTypeEncoder, serviceEncoder, flagEncoder, assembler, scaler, kmeans))
+    pipeline.fit(data)
   }
 
-  def clusteringTake4(rawData: RDD[String]): Unit = {
-    val parseFunction = buildCategoricalAndLabelFunction(rawData)
-    val labelsAndData = rawData.map(parseFunction)
-    val normalizedLabelsAndData =
-      labelsAndData.mapValues(buildNormalizationFunction(labelsAndData.values)).cache()
+  def clusteringScore4(data: DataFrame, k: Int): Double = {
+    val pipelineModel = fitPipeline4(data, k)
 
-    (80 to 160 by 10).map(k =>
-      (k, clusteringScore3(normalizedLabelsAndData, k))).toList.foreach(println)
+    // Predict cluster for each datum
+    val clusterLabel = pipelineModel.transform(data).
+      select("cluster", "label").as[(Int, String)]
+    val weightedClusterEntropy = clusterLabel.
+      // Extract collections of labels, per cluster
+      groupByKey { case (cluster, _) => cluster }.
+      mapGroups { case (_, clusterLabels) =>
+        val labels = clusterLabels.map { case (_, label) => label }.toSeq
+        // Count labels in collections
+        val labelCounts = labels.groupBy(identity).values.map(_.size)
+        labels.size * entropy(labelCounts)
+      }.collect()
 
-    normalizedLabelsAndData.unpersist()
+    // Average entropy weighted by cluster size
+    weightedClusterEntropy.sum / data.count()
+  }
+
+  def clusteringTake4(data: DataFrame): Unit = {
+    (60 to 270 by 30).map(k => (k, clusteringScore4(data, k))).foreach(println)
+
+    val pipelineModel = fitPipeline4(data, 180)
+    val countByClusterLabel = pipelineModel.transform(data).
+      select("cluster", "label").
+      groupBy("cluster", "label").count().
+      orderBy("cluster", "label")
+    countByClusterLabel.show()
   }
 
   // Detect anomalies
 
-  def buildAnomalyDetector(
-      data: RDD[Vector],
-      normalizeFunction: (Vector => Vector)): (Vector => Boolean) = {
-    val normalizedData = data.map(normalizeFunction)
-    normalizedData.cache()
+  def buildAnomalyDetector(data: DataFrame): Unit = {
+    val pipelineModel = fitPipeline4(data, 180)
 
-    val kmeans = new KMeans()
-    kmeans.setK(150)
-    kmeans.setRuns(10)
-    kmeans.setEpsilon(1.0e-6)
-    val model = kmeans.run(normalizedData)
+    val kMeansModel = pipelineModel.stages.last.asInstanceOf[KMeansModel]
+    val centroids = kMeansModel.clusterCenters
 
-    normalizedData.unpersist()
+    val clustered = pipelineModel.transform(data)
+    val threshold = clustered.
+      select("cluster", "scaledFeatureVector").as[(Int, Vector)].
+      map { case (cluster, vec) => Vectors.sqdist(centroids(cluster), vec) }.
+      orderBy($"value".desc).take(100).last
 
-    val distances = normalizedData.map(datum => distToCentroid(datum, model))
-    val threshold = distances.top(100).last
+    val originalCols = data.columns
+    val anomalies = clustered.filter { row =>
+      val cluster = row.getAs[Int]("cluster")
+      val vec = row.getAs[Vector]("scaledFeatureVector")
+      Vectors.sqdist(centroids(cluster), vec) >= threshold
+    }.select(originalCols.head, originalCols.tail:_*)
 
-    (datum: Vector) => distToCentroid(normalizeFunction(datum), model) > threshold
-  }
-
-  def anomalies(rawData: RDD[String]) = {
-    val parseFunction = buildCategoricalAndLabelFunction(rawData)
-    val originalAndData = rawData.map(line => (line, parseFunction(line)._2))
-    val data = originalAndData.values
-    val normalizeFunction = buildNormalizationFunction(data)
-    val anomalyDetector = buildAnomalyDetector(data, normalizeFunction)
-    val anomalies = originalAndData.filter {
-      case (original, datum) => anomalyDetector(datum)
-    }.keys
-    anomalies.take(10).foreach(println)
+    println(anomalies.first())
   }
 
 }
