@@ -41,11 +41,6 @@
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
     </dependency>
-    <dependency>
-      <groupId>com.cloudera.datascience</groupId>
-      <artifactId>common</artifactId>
-      <version>${project.version}</version>
-    </dependency>
   </dependencies>
 
   <build>

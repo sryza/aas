@@ -28,9 +28,8 @@
       <artifactId>hadoop-client</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.cloudera.datascience</groupId>
-      <artifactId>common</artifactId>
-      <version>${project.version}</version>
+      <groupId>edu.umd</groupId>
+      <artifactId>cloud9</artifactId>
     </dependency>
   </dependencies>
 

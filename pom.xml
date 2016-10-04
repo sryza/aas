@@ -131,6 +131,11 @@
         <artifactId>joda-convert</artifactId>
         <version>1.8.1</version>
       </dependency>
+      <dependency>
+        <groupId>edu.umd</groupId>
+        <artifactId>cloud9</artifactId>
+        <version>1.5.0</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -180,7 +185,6 @@
   </prerequisites>
 
   <modules>
-    <module>common</module>
     <module>ch02-intro</module>
     <module>ch03-recommender</module>
     <module>ch04-rdf</module>

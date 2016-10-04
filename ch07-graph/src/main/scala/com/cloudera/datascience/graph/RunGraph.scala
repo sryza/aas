@@ -6,10 +6,10 @@
 
 package com.cloudera.datascience.graph
 
+import edu.umd.cloud9.collection.XMLInputFormat
+
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
-
-import com.cloudera.datascience.common.XmlInputFormat
 
 import org.apache.hadoop.io.{Text, LongWritable}
 import org.apache.hadoop.conf.Configuration
@@ -17,7 +17,6 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.spark.graphx._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.SparkContext._
 
 import scala.xml._
 
@@ -183,9 +182,9 @@ object RunGraph extends Serializable {
 
   def loadMedline(sc: SparkContext, path: String): RDD[String] = {
     val conf = new Configuration()
-    conf.set(XmlInputFormat.START_TAG_KEY, "<MedlineCitation ")
-    conf.set(XmlInputFormat.END_TAG_KEY, "</MedlineCitation>")
-    val in = sc.newAPIHadoopFile(path, classOf[XmlInputFormat],
+    conf.set(XMLInputFormat.START_TAG_KEY, "<MedlineCitation ")
+    conf.set(XMLInputFormat.END_TAG_KEY, "</MedlineCitation>")
+    val in = sc.newAPIHadoopFile(path, classOf[XMLInputFormat],
       classOf[LongWritable], classOf[Text], conf)
     in.map(line => line._2.toString)
   }
