@@ -205,7 +205,7 @@
     <maven.version.min>3.2.5</maven.version.min>
     <scala.minor.version>2.11</scala.minor.version>
     <scala.complete.version>${scala.minor.version}.8</scala.complete.version>
-    <spark.version>2.0.0</spark.version>
+    <spark.version>2.0.1</spark.version>
   </properties>
 
   <dependencies>
