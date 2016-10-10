@@ -6,20 +6,36 @@
 
 package com.cloudera.datascience.intro
 
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.SparkContext._
-import org.apache.spark.rdd.RDD
-import org.apache.spark.util.StatCounter
+import org.apache.spark.sql.SparkSession
 
 case class MatchData(id1: Int, id2: Int,
   scores: Array[Double], matched: Boolean)
 case class Scored(md: MatchData, score: Double)
 
+case class MatchData(
+ id_1: Int,
+ id_2: Int,
+ cmp_fname_c1: Double,
+ cmp_fname_c2: Double,
+ cmp_lname_c1: Double,
+ cmp_lname_c2: Double,
+ cmp_sex: Double,
+ cmp_bd: Double,
+ cmp_bm: Double,
+ cmp_by: Double,
+ cmp_plz: Double,
+ is_match: Boolean
+)
 object RunIntro extends Serializable {
   def main(args: Array[String]): Unit = {
-    val sc = new SparkContext(new SparkConf().setAppName("Intro"))
+    val spark = SparkSession.builder
+      .config(conf = new SparkConf())
+      .appName("Intro")
+      .getOrCreate
    
-    val rawblocks = sc.textFile("hdfs:///user/ds/linkage")
+    val df = spark.read.option("header", "true").csv("hdfs:///user/ds/linkage")
+    spark.read.option("header", "true").option("inferSchema", "true").csv("/Users/jwills/spark/linkage")
+    val raw = spark.read.option("header", "true").option("inferSchema", "true").option("nullValue", "?").csv("/Users/jwills/spark/linkage")
     def isHeader(line: String) = line.contains("id_1")
     
     val noheader = rawblocks.filter(x => !isHeader(x))
@@ -27,12 +43,11 @@ object RunIntro extends Serializable {
      if ("?".equals(s)) Double.NaN else s.toDouble
     }
 
-    def parse(line: String) = {
-      val pieces = line.split(',')
-      val id1 = pieces(0).toInt
-      val id2 = pieces(1).toInt
-      val scores = pieces.slice(2, 11).map(toDouble)
-      val matched = pieces(11).toBoolean
+    def parse(row: Row) = {
+      val id1 = row.getString(0).toInt
+      val id2 = row.getString(1).toInt
+      val scores = (2 until 11).map(i => toDouble(row.getString(i))).toArray
+      val matched = row.getString(11).toBoolean
       MatchData(id1, id2, scores, matched)
     }
 
