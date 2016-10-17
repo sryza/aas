@@ -6,9 +6,10 @@
 
 package com.cloudera.datascience.lsa
 
-import breeze.linalg.{DenseMatrix => BDenseMatrix, DenseVector => BDenseVector, SparseVector => BSparseVector}
+import breeze.linalg.{DenseMatrix => BDenseMatrix, SparseVector => BSparseVector}
 import org.apache.spark.SparkContext._
-import org.apache.spark.mllib.linalg._
+import org.apache.spark.mllib.linalg.{Matrices, Matrix, SingularValueDecomposition, Vectors, Vector => MLLibVector}
+import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.mllib.linalg.distributed.RowMatrix
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -31,7 +32,10 @@ object RunLSA {
 
     docTermMatrix.cache()
 
-    val vecRdd = docTermMatrix.rdd.map(_.getAs[Vector]("tfidf"))
+    val vecRdd = docTermMatrix.select("tfidfVec").rdd.map { row =>
+      val sparseVec = row.getAs[MLVector]("tfidfVec").toSparse
+      Vectors.sparse(sparseVec.size, sparseVec.indices, sparseVec.values)
+    }
 
     vecRdd.cache()
     val mat = new RowMatrix(vecRdd)
@@ -48,9 +52,18 @@ object RunLSA {
     }
 
     val queryEngine = new LSAQueryEngine(svd, termIds, docIds, termIdfs)
-    queryEngine.printRelevantTerms("algorithm")
+    queryEngine.printTopTermsForTerm("algorithm")
+    queryEngine.printTopTermsForTerm("radiohead")
+    queryEngine.printTopTermsForTerm("tarantino")
 
+    queryEngine.printTopDocsForTerm("fir")
+    queryEngine.printTopDocsForTerm("graph")
 
+    queryEngine.printTopDocsForDoc("Romania")
+    queryEngine.printTopDocsForDoc("Brad Pitt")
+    queryEngine.printTopDocsForDoc("Radiohead")
+
+    queryEngine.printTopDocsForTermQuery(Seq("factorization", "decomposition"))
   }
 
   /**
@@ -107,8 +120,8 @@ class LSAQueryEngine(
 
   val VS: BDenseMatrix[Double] = multiplyByDiagonalMatrix(svd.V, svd.s)
   val normalizedVS: BDenseMatrix[Double] = rowsNormalized(VS)
-  val US = multiplyByDiagonalMatrix(svd.U, svd.s)
-  val normalizedUS = rowsNormalized(US)
+  val US: RowMatrix = multiplyByDiagonalRowMatrix(svd.U, svd.s)
+  val normalizedUS: RowMatrix = distributedRowsNormalized(US)
 
   val idTerms: Map[String, Int] = termIds.zipWithIndex.toMap
   val idDocs: Map[String, Long] = docIds.map(_.swap)
@@ -117,16 +130,16 @@ class LSAQueryEngine(
    * Finds the product of a dense matrix and a diagonal matrix represented by a vector.
    * Breeze doesn't support efficient diagonal representations, so multiply manually.
    */
-  def multiplyByDiagonalMatrix(mat: Matrix, diag: Vector): BDenseMatrix[Double] = {
+  def multiplyByDiagonalMatrix(mat: Matrix, diag: MLLibVector): BDenseMatrix[Double] = {
     val sArr = diag.toArray
     new BDenseMatrix[Double](mat.numRows, mat.numCols, mat.toArray)
-      .mapPairs{case ((r, c), v) => v * sArr(c)}
+      .mapPairs { case ((r, c), v) => v * sArr(c) }
   }
 
   /**
    * Finds the product of a distributed matrix and a diagonal matrix represented by a vector.
    */
-  def multiplyByDiagonalMatrix(mat: RowMatrix, diag: Vector): RowMatrix = {
+  def multiplyByDiagonalRowMatrix(mat: RowMatrix, diag: MLLibVector): RowMatrix = {
     val sArr = diag.toArray
     new RowMatrix(mat.rows.map(vec => {
       val vecArr = vec.toArray
@@ -150,7 +163,7 @@ class LSAQueryEngine(
   /**
    * Returns a distributed matrix where each row is divided by its length.
    */
-  def rowsNormalized(mat: RowMatrix): RowMatrix = {
+  def distributedRowsNormalized(mat: RowMatrix): RowMatrix = {
     new RowMatrix(mat.rows.map(vec => {
       val length = math.sqrt(vec.toArray.map(x => x * x).sum)
       Vectors.dense(vec.toArray.map(_ / length))
@@ -161,38 +174,16 @@ class LSAQueryEngine(
    * Finds docs relevant to a term. Returns the doc IDs and scores for the docs with the highest
    * relevance scores to the given term.
    */
-  def topDocsForTerm(US: RowMatrix, V: Matrix, termId: Int): Seq[(Double, Long)] = {
-    val termRowArr = row(V, termId).toArray
-    val termRowVec = Matrices.dense(termRowArr.length, 1, termRowArr)
+  def topDocsForTerm(termId: Int): Seq[(Double, Long)] = {
+    val rowArr = (0 until svd.V.numCols).map(i => svd.V(termId, i)).toArray
+    val rowVec = Matrices.dense(rowArr.length, 1, rowArr)
 
     // Compute scores against every doc
-    val docScores = US.multiply(termRowVec)
+    val docScores = US.multiply(rowVec)
 
     // Find the docs with the highest scores
     val allDocWeights = docScores.rows.map(_.toArray(0)).zipWithUniqueId
     allDocWeights.top(10)
-  }
-
-  /**
-   * Selects a row from a Breeze matrix.
-   */
-  def row(mat: BDenseMatrix[Double], index: Int): Seq[Double] = {
-    (0 until mat.cols).map(c => mat(index, c))
-  }
-
-  /**
-   * Selects a row from an MLlib matrix.
-   */
-  def row(mat: Matrix, index: Int): Seq[Double] = {
-    val arr = mat.toArray
-    (0 until mat.numCols).map(i => arr(index + i * mat.numRows))
-  }
-
-  /**
-   * Selects a row from a distributed matrix.
-   */
-  def row(mat: RowMatrix, id: Long): Array[Double] = {
-    mat.rows.zipWithUniqueId.map(_.swap).lookup(id).head.toArray
   }
 
   /**
@@ -201,10 +192,10 @@ class LSAQueryEngine(
    */
   def topTermsForTerm(termId: Int): Seq[(Double, Int)] = {
     // Look up the row in VS corresponding to the given term ID.
-    val termRowVec = new BDenseVector[Double](row(normalizedVS, termId).toArray)
+    val rowVec = normalizedVS(termId, ::).t
 
     // Compute scores against every term
-    val termScores = (normalizedVS * termRowVec).toArray.zipWithIndex
+    val termScores = (normalizedVS * rowVec).toArray.zipWithIndex
 
     // Find the terms with the highest scores
     termScores.sortBy(-_._1).take(10)
@@ -216,7 +207,7 @@ class LSAQueryEngine(
    */
   def topDocsForDoc(docId: Long): Seq[(Double, Long)] = {
     // Look up the row in US corresponding to the given doc ID.
-    val docRowArr = row(normalizedUS, docId)
+    val docRowArr = normalizedUS.rows.zipWithUniqueId.map(_.swap).lookup(docId).head.toArray
     val docRowVec = Matrices.dense(docRowArr.length, 1, docRowArr)
 
     // Compute scores against every doc
@@ -251,16 +242,22 @@ class LSAQueryEngine(
 
   def printTopTermsForTerm(term: String) {
     val idWeights = topTermsForTerm(idTerms(term))
-    println(idWeights.map{case (score, id) => (termIds(id), score)}.mkString(", "))
+    println(idWeights.map { case (score, id) => (termIds(id), score) }.mkString(", "))
   }
 
   def printTopDocsForDoc(doc: String) {
     val idWeights = topDocsForDoc(idDocs(doc))
-    println(idWeights.map{case (score, id) => (docIds(id), score)}.mkString(", "))
+    println(idWeights.map { case (score, id) => (docIds(id), score) }.mkString(", "))
   }
 
   def printTopDocsForTerm(term: String) {
-    val idWeights = topDocsForTerm(US, svd.V, idTerms(term))
-    println(idWeights.map{case (score, id) => (docIds(id), score)}.mkString(", "))
+    val idWeights = topDocsForTerm(idTerms(term))
+    println(idWeights.map { case (score, id) => (docIds(id), score) }.mkString(", "))
+  }
+
+  def printTopDocsForTermQuery(terms: Seq[String]) {
+    val queryVec = termsToQueryVector(terms)
+    val idWeights = topDocsForTermQuery(queryVec)
+    println(idWeights.map { case (score, id) => (docIds(id), score) }.mkString(", "))
   }
 }

@@ -15,16 +15,14 @@ import java.util.Properties
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.{LongWritable, Text}
-import org.apache.spark.SparkContext._
 import org.apache.spark.ml.feature.{CountVectorizer, IDF}
-import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-class AssembleDocumentTermMatrix(private val spark: SparkSession) {
+class AssembleDocumentTermMatrix(private val spark: SparkSession) extends Serializable {
   import spark.implicits._
 
   /**
@@ -53,7 +51,7 @@ class AssembleDocumentTermMatrix(private val spark: SparkSession) {
     conf.set(XMLInputFormat.END_TAG_KEY, "</page>")
     val kvs = spark.sparkContext.newAPIHadoopFile(path, classOf[XMLInputFormat], classOf[LongWritable],
       classOf[Text], conf)
-    val rawXmls = kvs.map(p => p._2.toString).toDS()
+    val rawXmls = kvs.map(_._2.toString).toDS()
 
     rawXmls.filter(_ != null).flatMap(wikiXmlToPlainText)
   }
@@ -91,10 +89,10 @@ class AssembleDocumentTermMatrix(private val spark: SparkSession) {
     val stopWords = scala.io.Source.fromFile(stopWordsFile).getLines().toSet
     val bStopWords = spark.sparkContext.broadcast(stopWords).value
 
-    docs.mapPartitions(iter => {
+    docs.mapPartitions { iter =>
       val pipeline = createNLPPipeline()
       iter.map{ case(title, contents) => (title, plainTextToLemmas(contents, stopWords, pipeline))}
-    })
+    }
   }
 
   def loadStopWords(path: String): Set[String] = {
@@ -123,10 +121,8 @@ class AssembleDocumentTermMatrix(private val spark: SparkSession) {
 
     docTermFreqs.cache()
 
-    val docIdsDF = docTermFreqs.withColumn("id", monotonically_increasing_id).select("title", "id")
-    val docIds = docIdsDF.collect().map{
-      row => (row.getAs[Long]("id"), row.getAs[String]("title"))
-    }.toMap
+    val docIdsDF = docTermFreqs.withColumn("id", monotonically_increasing_id)
+    val docIds = docIdsDF.select("id", "title").as[(Long, String)].collect().toMap
 
     val idf = new IDF().setInputCol("termFreqs").setOutputCol("tfidfVec")
     val idfModel = idf.fit(docTermFreqs)
