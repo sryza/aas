@@ -24,10 +24,6 @@
       <artifactId>hadoop-client</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.github.nscala-time</groupId>
-      <artifactId>nscala-time_${scala.minor.version}</artifactId>
-    </dependency>
-    <dependency>
       <groupId>com.esri.geometry</groupId>
       <artifactId>esri-geometry-api</artifactId>
       <version>1.2.1</version>
@@ -36,10 +32,6 @@
       <groupId>io.spray</groupId>
       <artifactId>spray-json_${scala.minor.version}</artifactId>
       <version>1.3.2</version>
-    </dependency>
-    <dependency>
-      <groupId>joda-time</groupId>
-      <artifactId>joda-time</artifactId>
     </dependency>
   </dependencies>
 
