@@ -13,7 +13,7 @@ import java.time.format.DateTimeFormatter
 import scala.collection.mutable.ArrayBuffer
 import org.apache.spark.mllib.stat.KernelDensity
 import org.apache.spark.sql.{Dataset, SparkSession}
-import org.apache.spark.sql.functions.stddev_pop
+import org.apache.spark.sql.functions
 import org.apache.spark.util.StatCounter
 import breeze.plot._
 import org.apache.commons.math3.distribution.ChiSquaredDistribution
@@ -240,10 +240,10 @@ class RunRisk(private val spark: SparkSession) {
 
   def plotDistribution(samples: Dataset[Double]): Figure = {
     val stats = samples.agg(
-      org.apache.spark.sql.functions.min($"value"),
-      org.apache.spark.sql.functions.max($"value"),
-      org.apache.spark.sql.functions.count($"value"),
-      stddev_pop($"value")
+      functions.min($"value"),
+      functions.max($"value"),
+      functions.count($"value"),
+      functions.stddev_pop($"value")
     ).first()
     val min = stats(0).asInstanceOf[Double]
     val max = stats(1).asInstanceOf[Double]
