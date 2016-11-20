@@ -239,16 +239,12 @@ class RunRisk(private val spark: SparkSession) {
   }
 
   def plotDistribution(samples: Dataset[Double]): Figure = {
-    val stats = samples.agg(
+    val (min, max, count, stddev) = samples.agg(
       functions.min($"value"),
       functions.max($"value"),
       functions.count($"value"),
       functions.stddev_pop($"value")
-    ).first()
-    val min = stats(0).asInstanceOf[Double]
-    val max = stats(1).asInstanceOf[Double]
-    val count = stats(2).asInstanceOf[Long]
-    val stddev = stats(3).asInstanceOf[Double]
+    ).as[(Double, Double, Long, Double)].first()
     val bandwidth = 1.06 * stddev * math.pow(count, -.2)
 
     // Using toList before toArray avoids a Scala bug
@@ -267,7 +263,7 @@ class RunRisk(private val spark: SparkSession) {
 
   def fivePercentVaR(trials: Dataset[Double]): Double = {
     val quantiles = trials.stat.approxQuantile("value", Array(0.05), 0.0)
-    quantiles(0)
+    quantiles.head
   }
 
   def fivePercentCVaR(trials: Dataset[Double]): Double = {
