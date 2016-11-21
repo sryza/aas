@@ -8,6 +8,7 @@ package com.cloudera.datascience.geotime
 
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.sql.SparkSession._
@@ -45,7 +46,7 @@ object RunGeoTime extends Serializable {
     taxiGood.cache()
 
     val hours = (pickup: Long, dropoff: Long) => {
-      (dropoff - pickup) / (1000 * 60 * 60)
+      TimeUnit.HOURS.convert(dropoff - pickup, TimeUnit.MILLISECONDS)
     }
     val hoursUDF = udf(hours)
 
@@ -58,10 +59,10 @@ object RunGeoTime extends Serializable {
     val geojson = scala.io.Source.fromURL(this.getClass.getResource("/nyc-boroughs.geojson")).mkString
 
     val features = geojson.parseJson.convertTo[FeatureCollection]
-    val areaSortedFeatures = features.sortBy(f => {
+    val areaSortedFeatures = features.sortBy { f => 
       val borough = f("boroughCode").convertTo[Int]
       (borough, -f.geometry.area2D())
-    })
+    }
 
     val bFeatures = spark.sparkContext.broadcast(areaSortedFeatures)
 
