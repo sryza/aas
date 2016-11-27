@@ -143,7 +143,7 @@ object RunGraph extends Serializable {
     val start = Map[VertexId, Int]()
     val res = mapGraph.ops.pregel(start)(update, iterate, mergeMaps)
     res.vertices.flatMap { case (id, m) =>
-      m.map { case (k, v) =>
+      m.map{ case (k, v) =>
         if (id < k) {
           (id, k, v)
         } else {
@@ -160,7 +160,7 @@ object RunGraph extends Serializable {
         m2.getOrElse(k, Int.MaxValue))
     }
 
-    (m1.keySet ++ m2.keySet).map {
+    (m1.keySet ++ m2.keySet).map{
       k => (k, minThatExists(k))
     }.toMap
   }
@@ -172,7 +172,7 @@ object RunGraph extends Serializable {
 
   def checkIncrement(a: Map[VertexId, Int], b: Map[VertexId, Int], bid: VertexId)
     : Iterator[(VertexId, Map[VertexId, Int])] = {
-    val aplus = a.map { case (v, d) => v -> (d + 1) }
+    val aplus = a.map{ case (v, d) => v -> (d + 1) }
     if (b != mergeMaps(aplus, b)) {
       Iterator((bid, aplus))
     } else {
