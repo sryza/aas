@@ -49,8 +49,8 @@ object RunGraph extends Serializable {
     spark.sql("SELECT pairs, cnt FROM topic_pairs ORDER BY cnt DESC LIMIT 10").show()
 
     val vertices = topics.map{ case Row(topic: String) => (hashId(topic), topic) }
-    val edges = cooccurs.map{ case Row(topics: Seq[String], cnt: Long) => {
-       val ids = topics.map(hashId).sorted
+    val edges = cooccurs.map{ case Row(topics: Seq[_], cnt: Long) => {
+       val ids = topics.map(_.toString).map(hashId).sorted
        Edge(ids(0), ids(1), cnt)
       }
     }
