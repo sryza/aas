@@ -14,42 +14,47 @@ import java.security.MessageDigest
 import org.apache.hadoop.io.{Text, LongWritable}
 import org.apache.hadoop.conf.Configuration
 
+import org.apache.spark.SparkContext
 import org.apache.spark.graphx._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession, Row}
+import org.apache.spark.sql.functions._
 
 import scala.xml._
 
 object RunGraph extends Serializable {
 
   def main(args: Array[String]): Unit = {
-    val sc = new SparkContext(new SparkConf().setAppName("Graph"))
+    val spark = SparkSession.builder().getOrCreate()
+    import spark.implicits._
+    val sc = spark.sparkContext
 
     val medlineRaw = loadMedline(sc, "hdfs:///user/ds/medline")
     val mxml: RDD[Elem] = medlineRaw.map(XML.loadString)
-    val medline: RDD[Seq[String]] = mxml.map(majorTopics).cache()
+    val medline: Dataset[Seq[String]] = mxml.map(majorTopics).toDS.cache()
 
-    val topics: RDD[String] = medline.flatMap(mesh => mesh)
-    val topicCounts = topics.countByValue()
-    val tcSeq = topicCounts.toSeq
-    tcSeq.sortBy(_._2).reverse.take(10).foreach(println)
-    val valueDist = topicCounts.groupBy(_._2).mapValues(_.size)
-    valueDist.toSeq.sorted.take(10).foreach(println)
+    val topics = medline.flatMap(mesh => mesh).toDF("topic")
+    topics.createOrReplaceTempView("topics")
+    val topicDist = spark.sql("SELECT topic, COUNT(*) cnt FROM topics GROUP BY topic ORDER BY cnt DESC")
+    topicDist.show()
+    topicDist.createOrReplaceTempView("topic_dist")
+    spark.sql("SELECT cnt, COUNT(*) dist FROM topic_dist GROUP BY cnt ORDER BY dist DESC LIMIT 10").show()
 
-    val topicPairs = medline.flatMap(t => t.sorted.combinations(2))
-    val cooccurs = topicPairs.map(p => (p, 1)).reduceByKey(_+_)
+    val topicPairs = medline.flatMap(t => t.sorted.combinations(2)).toDF("pairs")
+    topicPairs.createOrReplaceTempView("topic_pairs")
+    val cooccurs = spark.sql("SELECT pairs, COUNT(*) cnt FROM topic_pairs GROUP BY pairs")
     cooccurs.cache()
-    cooccurs.count()
 
-    cooccurs.top(10)(Ordering.by[(Seq[String], Int), Int](_._2)).foreach(println) 
+    println("Number of unique co-occurrence pairs: " + cooccurs.count())
+    spark.sql("SELECT pairs, cnt FROM topic_pairs ORDER BY cnt DESC LIMIT 10").show()
 
-    val vertices = topics.map(topic => (hashId(topic), topic))
-    val edges = cooccurs.map(p => {
-     val (topics, cnt) = p
-     val ids = topics.map(hashId).sorted
-     Edge(ids(0), ids(1), cnt)
-    })
-    val topicGraph = Graph(vertices, edges)
+    val vertices = topics.map{ case Row(topic: String) => (hashId(topic), topic) }
+    val edges = cooccurs.map{ case Row(topics: Seq[_], cnt: Long) => {
+       val ids = topics.map(_.toString).map(hashId).sorted
+       Edge(ids(0), ids(1), cnt)
+      }
+    }
+    val topicGraph = Graph(vertices.rdd, edges.rdd)
     topicGraph.cache()
 
     val connectedComponentGraph = topicGraph.connectedComponents()
@@ -63,15 +68,15 @@ object RunGraph extends Serializable {
     val c1 = nameCID.filter(x => x._2._2 == componentCounts(1)._1)
     c1.collect().foreach(x => println(x._2._1))
 
-    val hiv = topics.filter(_.contains("HIV")).countByValue
-    hiv.foreach(println)
+    val hiv = spark.sql("SELECT * FROM topic_dist WHERE topic LIKE '%hiv%'")
+    hiv.show()
 
     val degrees: VertexRDD[Int] = topicGraph.degrees.cache()
     degrees.map(_._2).stats()
     topNamesAndDegrees(degrees, topicGraph).foreach(println)
 
     val T = medline.count()
-    val topicCountsRdd = topics.map(x => (hashId(x), 1)).reduceByKey(_+_)
+    val topicCountsRdd = topicDist.map{ case Row(topic: String, cnt: Long) => (hashId(topic), cnt) }.rdd
     val topicCountGraph = Graph(topicCountsRdd, topicGraph.edges)
     val chiSquaredGraph = topicCountGraph.mapTriplets(triplet => {
       chiSq(triplet.attr, triplet.srcAttr, triplet.dstAttr, T)
@@ -102,7 +107,7 @@ object RunGraph extends Serializable {
     componentCounts.toSeq.sortBy(_._2).reverse
   }
 
-  def topNamesAndDegrees(degrees: VertexRDD[Int], topicGraph: Graph[String, Int])
+  def topNamesAndDegrees(degrees: VertexRDD[Int], topicGraph: Graph[String, Long])
     : Array[(String, Int)] = {
     val namesAndDegrees = degrees.innerJoin(topicGraph.vertices) {
       (topicId, degree, name) => (name, degree)
@@ -138,7 +143,7 @@ object RunGraph extends Serializable {
     val start = Map[VertexId, Int]()
     val res = mapGraph.ops.pregel(start)(update, iterate, mergeMaps)
     res.vertices.flatMap { case (id, m) =>
-      m.map { case (k, v) =>
+      m.map{ case (k, v) =>
         if (id < k) {
           (id, k, v)
         } else {
@@ -155,7 +160,7 @@ object RunGraph extends Serializable {
         m2.getOrElse(k, Int.MaxValue))
     }
 
-    (m1.keySet ++ m2.keySet).map {
+    (m1.keySet ++ m2.keySet).map{
       k => (k, minThatExists(k))
     }.toMap
   }
@@ -167,7 +172,7 @@ object RunGraph extends Serializable {
 
   def checkIncrement(a: Map[VertexId, Int], b: Map[VertexId, Int], bid: VertexId)
     : Iterator[(VertexId, Map[VertexId, Int])] = {
-    val aplus = a.map { case (v, d) => v -> (d + 1) }
+    val aplus = a.map{ case (v, d) => v -> (d + 1) }
     if (b != mergeMaps(aplus, b)) {
       Iterator((bid, aplus))
     } else {
@@ -210,7 +215,7 @@ object RunGraph extends Serializable {
     ((bytes(7) & 0xFFL) << 56)
   }
 
-  def chiSq(YY: Int, YB: Int, YA: Int, T: Long): Double = {
+  def chiSq(YY: Long, YB: Long, YA: Long, T: Long): Double = {
     val NB = T - YB
     val NA = T - YA
     val YN = YA - YY
