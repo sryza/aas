@@ -23,6 +23,7 @@ case class MatchData(
   cmp_plz: Option[Int],
   is_match: Boolean
 )
+
 case class Scored(score: Double, is_match: Boolean)
 
 object RunIntro extends Serializable {
@@ -77,9 +78,9 @@ object RunIntro extends Serializable {
       ORDER BY delta DESC, total DESC
     """).show()
 
-    val scoredDF = parsed.map(row => {
+    val scoredDF = parsed.map { row =>
       (scoreRow(row), row.getAs[Boolean]("is_match"))
-    }).toDF("score", "is_match")
+    }.toDF("score", "is_match")
 
     crossTabs(scoredDF).show()
 
@@ -99,13 +100,13 @@ object RunIntro extends Serializable {
   }
 
   def getDoubleOrZero(row: Row, idx: Int): Double = {
-    if (row.isNullAt(idx)) { 0.0 } else { row.get(idx).toString.toDouble }
+    if (row.isNullAt(idx)) 0.0 else row.get(idx).toString.toDouble
   }
 
   def scoreRow(row: Row): Double = {
-    Seq("cmp_plz", "cmp_by", "cmp_bd", "cmp_lname_c1", "cmp_bm").map(f => {
+    Seq("cmp_plz", "cmp_by", "cmp_bd", "cmp_lname_c1", "cmp_bm").map { f =>
       getDoubleOrZero(row, row.fieldIndex(f))
-    }).sum
+    }.sum
   }
 
   def scoreMatchData(md: MatchData): Double = {
