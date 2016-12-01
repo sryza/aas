@@ -10,8 +10,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
-import org.apache.spark.sql.SparkSession._
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.functions._
 
 import com.esri.core.geometry.Point
@@ -20,7 +19,8 @@ import spray.json._
 import com.cloudera.datascience.geotime.GeoJsonProtocol._
 
 class RichRow(row: Row) {
-  def getAs[T](field: String) = if (row.isNullAt(row.fieldIndex(field))) None else Some(row.getAs[T](field))
+  def getAs[T](field: String): Option[T] =
+    if (row.isNullAt(row.fieldIndex(field))) None else Some(row.getAs[T](field))
 }
 
 case class Trip(
@@ -50,7 +50,7 @@ object RunGeoTime extends Serializable {
     }
     val hoursUDF = udf(hours)
 
-    taxiGood.groupBy(hoursUDF('pickupTime, 'dropoffTime)).count().show()
+    taxiGood.groupBy(hoursUDF($"pickupTime", $"dropoffTime")).count().show()
 
     // register the UDF, use it in a where clause
     spark.udf.register("hours", hours)
@@ -76,9 +76,9 @@ object RunGeoTime extends Serializable {
     }
     val boroughUDF = udf(borough)
 
-    taxiClean.groupBy(boroughUDF('dropoffX, 'dropoffY)).count().show()
+    taxiClean.groupBy(boroughUDF($"dropoffX", $"dropoffY")).count().show()
     val taxiDone = taxiClean.where("dropoffX != 0 and dropoffY != 0 and pickupX != 0 and pickupY != 0")
-    taxiDone.groupBy(boroughUDF('dropoffX, 'dropoffY)).count().show()
+    taxiDone.groupBy(boroughUDF($"dropoffX", $"dropoffY")).count().show()
 
     taxiGood.unpersist()
 
@@ -119,7 +119,7 @@ object RunGeoTime extends Serializable {
 
   def parseTaxiTime(datetime: Option[String]): Long = {
     val formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH)
-    datetime.map(dt => formatter.parse(dt).getTime()).getOrElse(0L)
+    datetime.map(dt => formatter.parse(dt).getTime).getOrElse(0L)
   }
 
   def parse(line: Row): Trip = {
