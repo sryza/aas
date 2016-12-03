@@ -27,11 +27,9 @@ object RunGraph extends Serializable {
   def main(args: Array[String]): Unit = {
     val spark = SparkSession.builder().getOrCreate()
     import spark.implicits._
-    val sc = spark.sparkContext
 
-    val medlineRaw = loadMedline(sc, "hdfs:///user/ds/medline")
-    val mxml: RDD[Elem] = medlineRaw.map(XML.loadString)
-    val medline: Dataset[Seq[String]] = mxml.map(majorTopics).toDS.cache()
+    val medlineRaw: Dataset[String] = loadMedline(spark, "hdfs:///user/ds/medline")
+    val medline: Dataset[Seq[String]] = medlineRaw.map(majorTopics).cache()
 
     val topics = medline.flatMap(mesh => mesh).toDF("topic")
     topics.createOrReplaceTempView("topics")
@@ -40,7 +38,7 @@ object RunGraph extends Serializable {
     topicDist.createOrReplaceTempView("topic_dist")
     spark.sql("SELECT cnt, COUNT(*) dist FROM topic_dist GROUP BY cnt ORDER BY dist DESC LIMIT 10").show()
 
-    val topicPairs = medline.flatMap(t => t.sorted.combinations(2)).toDF("pairs")
+    val topicPairs = medline.flatMap(_.sorted.combinations(2)).toDF("pairs")
     topicPairs.createOrReplaceTempView("topic_pairs")
     val cooccurs = spark.sql("SELECT pairs, COUNT(*) cnt FROM topic_pairs GROUP BY pairs")
     cooccurs.cache()
@@ -48,50 +46,55 @@ object RunGraph extends Serializable {
     println("Number of unique co-occurrence pairs: " + cooccurs.count())
     spark.sql("SELECT pairs, cnt FROM topic_pairs ORDER BY cnt DESC LIMIT 10").show()
 
-    val vertices = topics.map{ case Row(topic: String) => (hashId(topic), topic) }
-    val edges = cooccurs.map{ case Row(topics: Seq[_], cnt: Long) => {
+    val vertices = topics.map{ case Row(topic: String) => (hashId(topic), topic) }.toDF("hash", "topic")
+    val edges = cooccurs.map{ case Row(topics: Seq[_], cnt: Long) =>
        val ids = topics.map(_.toString).map(hashId).sorted
        Edge(ids(0), ids(1), cnt)
-      }
     }
-    val topicGraph = Graph(vertices.rdd, edges.rdd)
+    val vertexRDD = vertices.rdd.map{ case Row(hash: Long, topic: String) => (hash, topic) }
+    val topicGraph = Graph(vertexRDD, edges.rdd)
     topicGraph.cache()
 
     val connectedComponentGraph = topicGraph.connectedComponents()
-    val componentCounts = sortedConnectedComponents(connectedComponentGraph)
-    componentCounts.size
-    componentCounts.take(10)foreach(println)
+    val componentDF = connectedComponentGraph.vertices.toDF("vid", "cid")
+    val componentCounts = componentDF.groupBy("cid").count()
+    componentCounts.orderBy(desc("count")).show()
 
-    val nameCID = topicGraph.vertices.innerJoin(connectedComponentGraph.vertices) {
+    val topicComponentDF = topicGraph.vertices.innerJoin(
+      connectedComponentGraph.vertices) {
       (topicId, name, componentId) => (name, componentId)
-    }
-    val c1 = nameCID.filter(x => x._2._2 == componentCounts(1)._1)
-    c1.collect().foreach(x => println(x._2._1))
+    }.toDF("topic", "cid")
+    topicComponentDF.where("cid = -6468702387578666337").show()
 
     val hiv = spark.sql("SELECT * FROM topic_dist WHERE topic LIKE '%hiv%'")
     hiv.show()
 
     val degrees: VertexRDD[Int] = topicGraph.degrees.cache()
     degrees.map(_._2).stats()
-    topNamesAndDegrees(degrees, topicGraph).foreach(println)
+    degrees.innerJoin(topicGraph.vertices) {
+      (topicId, degree, name) => (name, degree)
+    }.toDF("topic", "degree").orderBy(desc("degree")).show()
 
     val T = medline.count()
-    val topicCountsRdd = topicDist.map{ case Row(topic: String, cnt: Long) => (hashId(topic), cnt) }.rdd
-    val topicCountGraph = Graph(topicCountsRdd, topicGraph.edges)
-    val chiSquaredGraph = topicCountGraph.mapTriplets(triplet => {
+    val topicDistRdd = topicDist.map{ case Row(topic: String, cnt: Long) => (hashId(topic), cnt) }.rdd
+    val topicDistGraph = Graph(topicDistRdd, topicGraph.edges)
+    val chiSquaredGraph = topicDistGraph.mapTriplets(triplet => {
       chiSq(triplet.attr, triplet.srcAttr, triplet.dstAttr, T)
     })
     chiSquaredGraph.edges.map(x => x.attr).stats()
 
     val interesting = chiSquaredGraph.subgraph(triplet => triplet.attr > 19.5)
-
-    val interestingComponentCounts = sortedConnectedComponents(interesting.connectedComponents())
-    interestingComponentCounts.size
-    interestingComponentCounts.take(10).foreach(println)
+    val interestingComponentGraph = interesting.connectedComponents()
+    val icDF = interestingComponentGraph.vertices.toDF("vid", "cid")
+    val icCountDF = icDF.groupBy("cid").count()
+    icCountDF.count()
+    icCountDF.orderBy(desc("count")).show()
 
     val interestingDegrees = interesting.degrees.cache()
     interestingDegrees.map(_._2).stats()
-    topNamesAndDegrees(interestingDegrees, topicGraph).foreach(println)
+    interestingDegrees.innerJoin(topicGraph.vertices) {
+      (topicId, degree, name) => (name, degree)
+    }.toDF("topic", "degree").orderBy(desc("degree")).show()
 
     val avgCC = avgClusteringCoef(interesting)
 
@@ -100,20 +103,6 @@ object RunGraph extends Serializable {
 
     val hist = paths.map(_._3).countByValue()
     hist.toSeq.sorted.foreach(println)
-  }
-
-  def sortedConnectedComponents(connectedComponents: Graph[VertexId, _]): Seq[(VertexId, Long)] = {
-    val componentCounts = connectedComponents.vertices.map(_._2).countByValue
-    componentCounts.toSeq.sortBy(_._2).reverse
-  }
-
-  def topNamesAndDegrees(degrees: VertexRDD[Int], topicGraph: Graph[String, Long])
-    : Array[(String, Int)] = {
-    val namesAndDegrees = degrees.innerJoin(topicGraph.vertices) {
-      (topicId, degree, name) => (name, degree)
-    }
-    val ord = Ordering.by[(String, Int), Int](_._2)
-    namesAndDegrees.map(_._2).top(10)(ord)
   }
 
   def avgClusteringCoef(graph: Graph[_, _]): Double = {
@@ -185,16 +174,19 @@ object RunGraph extends Serializable {
     checkIncrement(e.dstAttr, e.srcAttr, e.srcId)
   }
 
-  def loadMedline(sc: SparkContext, path: String): RDD[String] = {
+  def loadMedline(spark: SparkSession, path: String): Dataset[String] = {
+    import spark.implicits._
     val conf = new Configuration()
     conf.set(XMLInputFormat.START_TAG_KEY, "<MedlineCitation ")
     conf.set(XMLInputFormat.END_TAG_KEY, "</MedlineCitation>")
+    val sc = spark.sparkContext
     val in = sc.newAPIHadoopFile(path, classOf[XMLInputFormat],
       classOf[LongWritable], classOf[Text], conf)
-    in.map(line => line._2.toString)
+    in.map(line => line._2.toString).toDS()
   }
 
-  def majorTopics(elem: Elem): Seq[String] = {
+  def majorTopics(record: String): Seq[String] = {
+    val elem = XML.loadString(record)
     val dn = elem \\ "DescriptorName"
     val mt = dn.filter(n => (n \ "@MajorTopicYN").text == "Y")
     mt.map(n => n.text)
