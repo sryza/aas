@@ -83,7 +83,6 @@ object RunGeoTime extends Serializable {
     taxiGood.unpersist()
 
     val sessions = taxiDone.repartition('license).sortWithinPartitions('license, 'pickupTime)
-
     def boroughDuration(t1: Trip, t2: Trip): (String, Long) = {
       val b = borough(t1.dropoffX, t1.dropoffY)
       val d = (t2.pickupTime - t1.dropoffTime) / 1000
@@ -96,11 +95,11 @@ object RunGeoTime extends Serializable {
         val viter = iter.filter(_.size == 2).filter(p => p(0).license == p(1).license)
         viter.map(p => boroughDuration(p(0), p(1)))
       }).toDF("borough", "seconds")
-    boroughDurations
-      .where("seconds > 0 AND seconds < 4*60*60")
-      .groupBy("borough")
-      .agg(avg("seconds"))
-      .show()
+    boroughDurations.
+      where("seconds > 0").
+      groupBy("borough").
+      agg(avg("seconds"), stddev("seconds")).
+      show()
 
     boroughDurations.unpersist()
   }
