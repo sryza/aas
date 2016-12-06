@@ -7,7 +7,7 @@
 package com.cloudera.datascience.lsa
 
 import breeze.linalg.{DenseMatrix => BDenseMatrix, SparseVector => BSparseVector}
-import org.apache.spark.SparkContext._
+
 import org.apache.spark.mllib.linalg.{Matrices, Matrix, SingularValueDecomposition, Vectors, Vector => MLLibVector}
 import org.apache.spark.ml.linalg.{Vector => MLVector}
 import org.apache.spark.mllib.linalg.distributed.RowMatrix
@@ -18,7 +18,7 @@ import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
 
 object RunLSA {
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     val k = if (args.length > 0) args(0).toInt else 100
     val numTerms = if (args.length > 1) args(1).toInt else 50000
 
@@ -67,8 +67,8 @@ object RunLSA {
   }
 
   /**
-   * The top concepts are the concepts that explain the most variance in the dataset. For each top concept, finds the
-   * terms that are most relevant to the concept.
+   * The top concepts are the concepts that explain the most variance in the dataset.
+   * For each top concept, finds the terms that are most relevant to the concept.
    *
    * @param svd A singular value decomposition.
    * @param numConcepts The number of concepts to look at.
@@ -85,14 +85,14 @@ object RunLSA {
       val offs = i * v.numRows
       val termWeights = arr.slice(offs, offs + v.numRows).zipWithIndex
       val sorted = termWeights.sortBy(-_._1)
-      topTerms += sorted.take(numTerms).map{case (score, id) => (termIds(id), score)}
+      topTerms += sorted.take(numTerms).map {case (score, id) => (termIds(id), score) }
     }
     topTerms
   }
 
   /**
-   * The top concepts are the concepts that explain the most variance in the dataset. For each top concept, finds the
-   * documentsthat are most relevant to the concept.
+   * The top concepts are the concepts that explain the most variance in the dataset.
+   * For each top concept, finds the documents that are most relevant to the concept.
    *
    * @param svd A singular value decomposition.
    * @param numConcepts The number of concepts to look at.
@@ -106,7 +106,7 @@ object RunLSA {
     val topDocs = new ArrayBuffer[Seq[(String, Double)]]()
     for (i <- 0 until numConcepts) {
       val docWeights = u.rows.map(_.toArray(i)).zipWithUniqueId
-      topDocs += docWeights.top(numDocs).map{case (score, id) => (docIds(id), score)}
+      topDocs += docWeights.top(numDocs).map { case (score, id) => (docIds(id), score) }
     }
     topDocs
   }
@@ -141,11 +141,11 @@ class LSAQueryEngine(
    */
   def multiplyByDiagonalRowMatrix(mat: RowMatrix, diag: MLLibVector): RowMatrix = {
     val sArr = diag.toArray
-    new RowMatrix(mat.rows.map(vec => {
+    new RowMatrix(mat.rows.map { vec =>
       val vecArr = vec.toArray
       val newArr = (0 until vec.size).toArray.map(i => vecArr(i) * sArr(i))
       Vectors.dense(newArr)
-    }))
+    })
   }
 
   /**
@@ -155,7 +155,7 @@ class LSAQueryEngine(
     val newMat = new BDenseMatrix[Double](mat.rows, mat.cols)
     for (r <- 0 until mat.rows) {
       val length = math.sqrt((0 until mat.cols).map(c => mat(r, c) * mat(r, c)).sum)
-      (0 until mat.cols).map(c => newMat.update(r, c, mat(r, c) / length))
+      (0 until mat.cols).foreach(c => newMat.update(r, c, mat(r, c) / length))
     }
     newMat
   }
@@ -164,10 +164,11 @@ class LSAQueryEngine(
    * Returns a distributed matrix where each row is divided by its length.
    */
   def distributedRowsNormalized(mat: RowMatrix): RowMatrix = {
-    new RowMatrix(mat.rows.map(vec => {
-      val length = math.sqrt(vec.toArray.map(x => x * x).sum)
-      Vectors.dense(vec.toArray.map(_ / length))
-    }))
+    new RowMatrix(mat.rows.map { vec =>
+      val array = vec.toArray
+      val length = math.sqrt(array.map(x => x * x).sum)
+      Vectors.dense(array.map(_ / length))
+    })
   }
 
   /**
@@ -240,22 +241,22 @@ class LSAQueryEngine(
     allDocWeights.top(10)
   }
 
-  def printTopTermsForTerm(term: String) {
+  def printTopTermsForTerm(term: String): Unit = {
     val idWeights = topTermsForTerm(idTerms(term))
     println(idWeights.map { case (score, id) => (termIds(id), score) }.mkString(", "))
   }
 
-  def printTopDocsForDoc(doc: String) {
+  def printTopDocsForDoc(doc: String): Unit = {
     val idWeights = topDocsForDoc(idDocs(doc))
     println(idWeights.map { case (score, id) => (docIds(id), score) }.mkString(", "))
   }
 
-  def printTopDocsForTerm(term: String) {
+  def printTopDocsForTerm(term: String): Unit = {
     val idWeights = topDocsForTerm(idTerms(term))
     println(idWeights.map { case (score, id) => (docIds(id), score) }.mkString(", "))
   }
 
-  def printTopDocsForTermQuery(terms: Seq[String]) {
+  def printTopDocsForTermQuery(terms: Seq[String]): Unit = {
     val queryVec = termsToQueryVector(terms)
     val idWeights = topDocsForTermQuery(queryVec)
     println(idWeights.map { case (score, id) => (docIds(id), score) }.mkString(", "))

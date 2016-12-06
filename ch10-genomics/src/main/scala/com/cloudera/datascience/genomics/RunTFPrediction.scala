@@ -20,7 +20,7 @@ import org.bdgenomics.adam.rich.ReferenceMappingContext._
 import scala.annotation.tailrec
 
 object RunTFPrediction {
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     val sc = new SparkContext(new SparkConf().setAppName("TF Prediction"))
 
     // Load the human genome reference sequence
@@ -77,9 +77,9 @@ object RunTFPrediction {
 
     // compute a motif score based on the TF PWM
     def scorePWM(ref: String): Double = {
-      val score1 = ref.sliding(bPwmData.value.length).map(s => {
+      val score1 = ref.sliding(bPwmData.value.length).map { s =>
         s.zipWithIndex.map(p => bPwmData.value(p._2)(p._1)).product
-      }).max
+      }.max
       val rc = SequenceUtils.reverseComplement(ref)
       val score2 = rc.sliding(bPwmData.value.length).map(s => {
         s.zipWithIndex.map(p => bPwmData.value(p._2)(p._1)).product
@@ -112,7 +112,7 @@ object RunTFPrediction {
 
     val cellLines = Vector("GM12878", "K562", "BJ", "HEK293", "H54", "HepG2")
 
-    val dataByCellLine = cellLines.map(cellLine => {
+    val dataByCellLine = cellLines.map { cellLine =>
       val dnaseRDD = sc.loadFeatures(
         s"/user/ds/genomics/dnase/$cellLine.DNase.narrowPeak")
       val chipseqRDD = sc.loadFeatures(
@@ -144,7 +144,7 @@ object RunTFPrediction {
         // group the conservation values by DNase peak
         .groupBy(x => x._1.getFeatureId)
         // compute conservation stats on each peak
-        .map(x => {
+        .map { x =>
           val y = x._2.toSeq
           val peak = y(0)._1
           val values = y.map(_._2.getValue)
@@ -153,9 +153,9 @@ object RunTFPrediction {
           val m = values.max
           val M = values.min
           (peak.getFeatureId, peak, avg, m, M)
-        })
+        }
 
-      dnaseWithPhylopRDD.map(tup => {
+      dnaseWithPhylopRDD.map { tup =>
         val peak = tup._2
         val featureId = peak.getFeatureId
         val contig = peak.getContig.getContigName
@@ -172,8 +172,8 @@ object RunTFPrediction {
         val line = cellLine
         val bound = generateLabel(peak)
         (featureId, contig, start, end, score, avg, m, M, closest_tss, tf, line, bound)
-      })
-    })
+      }
+    }
 
     // union the prepared data together
     val preTrainingData = dataByCellLine.reduce(_ ++ _)

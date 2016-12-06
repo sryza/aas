@@ -91,7 +91,7 @@ class AssembleDocumentTermMatrix(private val spark: SparkSession) extends Serial
 
     docs.mapPartitions { iter =>
       val pipeline = createNLPPipeline()
-      iter.map{ case(title, contents) => (title, plainTextToLemmas(contents, stopWords, pipeline))}
+      iter.map { case (title, contents) => (title, plainTextToLemmas(contents, stopWords, pipeline)) }
     }
   }
 

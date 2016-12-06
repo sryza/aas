@@ -14,10 +14,9 @@ import java.security.MessageDigest
 import org.apache.hadoop.io.{Text, LongWritable}
 import org.apache.hadoop.conf.Configuration
 
-import org.apache.spark.SparkContext
 import org.apache.spark.graphx._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession, Row}
+import org.apache.spark.sql.{Dataset, SparkSession, Row}
 import org.apache.spark.sql.functions._
 
 import scala.xml._
@@ -46,8 +45,8 @@ object RunGraph extends Serializable {
     println("Number of unique co-occurrence pairs: " + cooccurs.count())
     spark.sql("SELECT pairs, cnt FROM topic_pairs ORDER BY cnt DESC LIMIT 10").show()
 
-    val vertices = topics.map{ case Row(topic: String) => (hashId(topic), topic) }.toDF("hash", "topic")
-    val edges = cooccurs.map{ case Row(topics: Seq[_], cnt: Long) =>
+    val vertices = topics.map { case Row(topic: String) => (hashId(topic), topic) }.toDF("hash", "topic")
+    val edges = cooccurs.map { case Row(topics: Seq[_], cnt: Long) =>
        val ids = topics.map(_.toString).map(hashId).sorted
        Edge(ids(0), ids(1), cnt)
     }
@@ -76,11 +75,11 @@ object RunGraph extends Serializable {
     }.toDF("topic", "degree").orderBy(desc("degree")).show()
 
     val T = medline.count()
-    val topicDistRdd = topicDist.map{ case Row(topic: String, cnt: Long) => (hashId(topic), cnt) }.rdd
+    val topicDistRdd = topicDist.map { case Row(topic: String, cnt: Long) => (hashId(topic), cnt) }.rdd
     val topicDistGraph = Graph(topicDistRdd, topicGraph.edges)
-    val chiSquaredGraph = topicDistGraph.mapTriplets(triplet => {
+    val chiSquaredGraph = topicDistGraph.mapTriplets(triplet =>
       chiSq(triplet.attr, triplet.srcAttr, triplet.dstAttr, T)
-    })
+    )
     chiSquaredGraph.edges.map(x => x.attr).stats()
 
     val interesting = chiSquaredGraph.subgraph(triplet => triplet.attr > 19.5)
@@ -132,7 +131,7 @@ object RunGraph extends Serializable {
     val start = Map[VertexId, Int]()
     val res = mapGraph.ops.pregel(start)(update, iterate, mergeMaps)
     res.vertices.flatMap { case (id, m) =>
-      m.map{ case (k, v) =>
+      m.map { case (k, v) =>
         if (id < k) {
           (id, k, v)
         } else {
@@ -149,9 +148,7 @@ object RunGraph extends Serializable {
         m2.getOrElse(k, Int.MaxValue))
     }
 
-    (m1.keySet ++ m2.keySet).map{
-      k => (k, minThatExists(k))
-    }.toMap
+    (m1.keySet ++ m2.keySet).map(k => (k, minThatExists(k))).toMap
   }
 
   def update(id: VertexId, state: Map[VertexId, Int], msg: Map[VertexId, Int])
@@ -161,7 +158,7 @@ object RunGraph extends Serializable {
 
   def checkIncrement(a: Map[VertexId, Int], b: Map[VertexId, Int], bid: VertexId)
     : Iterator[(VertexId, Map[VertexId, Int])] = {
-    val aplus = a.map{ case (v, d) => v -> (d + 1) }
+    val aplus = a.map { case (v, d) => v -> (d + 1) }
     if (b != mergeMaps(aplus, b)) {
       Iterator((bid, aplus))
     } else {

@@ -6,10 +6,8 @@
 
 package com.cloudera.datascience.risk
 
-import org.apache.spark.SparkContext._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.util.StatCounter
-import org.apache.commons.math3.util.FastMath
 
 object KernelDensity {
   /**
@@ -17,7 +15,7 @@ object KernelDensity {
    */
   def chooseBandwidth(samples: Seq[Double]): Double = {
     val stddev = new StatCounter(samples).stdev
-    1.06 * stddev * math.pow(samples.size, -.2)
+    1.06 * stddev * math.pow(samples.size, -0.2)
   }
 
   /**
@@ -25,7 +23,7 @@ object KernelDensity {
    */
   def chooseBandwidth(samples: RDD[Double]): Double = {
     val stats = samples.stats()
-    1.06 * stats.stdev * math.pow(stats.count, -.2)
+    1.06 * stats.stdev * math.pow(stats.count, -0.2)
   }
 
   /**
@@ -35,7 +33,7 @@ object KernelDensity {
   def estimate(samples: Seq[Double], evaluationPoints: Array[Double]): Array[Double] = {
     val stddev = chooseBandwidth(samples)
     val logStandardDeviationPlusHalfLog2Pi =
-      FastMath.log(stddev) + 0.5 * FastMath.log(2 * FastMath.PI)
+      math.log(stddev) + 0.5 * math.log(2.0 * math.Pi)
 
     val zero = (new Array[Double](evaluationPoints.length), 0)
     val (points, count) = samples.aggregate(zero)(
@@ -57,7 +55,7 @@ object KernelDensity {
   def estimate(samples: RDD[Double], evaluationPoints: Array[Double]): Array[Double] = {
     val stddev = chooseBandwidth(samples)
     val logStandardDeviationPlusHalfLog2Pi =
-      FastMath.log(stddev) + 0.5 * FastMath.log(2 * FastMath.PI)
+      math.log(stddev) + 0.5 * math.log(2.0 * math.Pi)
 
     val zero = (new Array[Double](evaluationPoints.length), 0)
     val (points, count) = samples.aggregate(zero)(
@@ -106,6 +104,6 @@ object KernelDensity {
       x: Double): Double = {
     val x0 = x - mean
     val x1 = x0 / standardDeviation
-    FastMath.exp(-0.5 * x1 * x1 - logStandardDeviationPlusHalfLog2Pi)
+    math.exp(-0.5 * x1 * x1 - logStandardDeviationPlusHalfLog2Pi)
   }
 }

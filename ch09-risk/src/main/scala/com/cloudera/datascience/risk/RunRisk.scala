@@ -150,7 +150,7 @@ class RunRisk(private val spark: SparkSession) {
 
   def factorMatrix(histories: Seq[Array[Double]]): Array[Array[Double]] = {
     val mat = new Array[Array[Double]](histories.head.length)
-    for (i <- 0 until histories.head.length) {
+    for (i <- histories.head.indices) {
       mat(i) = histories.map(_(i)).toArray
     }
     mat
@@ -287,7 +287,7 @@ class RunRisk(private val spark: SparkSession) {
 
   def countFailures(stocksReturns: Seq[Array[Double]], valueAtRisk: Double): Int = {
     var failures = 0
-    for (i <- 0 until stocksReturns(0).size) {
+    for (i <- stocksReturns.head.indices) {
       val loss = stocksReturns.map(_(i)).sum
       if (loss < valueAtRisk) {
         failures += 1
@@ -310,7 +310,7 @@ class RunRisk(private val spark: SparkSession) {
       valueAtRisk: Double,
       confidenceLevel: Double): Double = {
     val failures = countFailures(stocksReturns, valueAtRisk)
-    val total = stocksReturns(0).size
+    val total = stocksReturns.head.length
     val testStatistic = kupiecTestStatistic(total, failures, confidenceLevel)
     1 - new ChiSquaredDistribution(1.0).cumulativeProbability(testStatistic)
   }
