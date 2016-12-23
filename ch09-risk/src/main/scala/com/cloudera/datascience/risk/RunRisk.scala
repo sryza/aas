@@ -11,7 +11,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 import scala.collection.mutable.ArrayBuffer
-import org.apache.spark.mllib.stat.{KernelDensity => SparkKernelDensity}
+import org.apache.spark.mllib.stat.KernelDensity
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.functions
 import org.apache.spark.util.StatCounter
@@ -226,7 +226,7 @@ class RunRisk(private val spark: SparkSession) {
 
     // Using toList before toArray avoids a Scala bug
     val domain = Range.Double(min, max, (max - min) / 100).toList.toArray
-    val kd = new SparkKernelDensity().
+    val kd = new KernelDensity().
       setSample(samples.toSeq.toDS.rdd).
       setBandwidth(bandwidth)
     val densities = kd.estimate(domain)
@@ -249,7 +249,7 @@ class RunRisk(private val spark: SparkSession) {
 
     // Using toList before toArray avoids a Scala bug
     val domain = Range.Double(min, max, (max - min) / 100).toList.toArray
-    val kd = new SparkKernelDensity().
+    val kd = new KernelDensity().
       setSample(samples.rdd).
       setBandwidth(bandwidth)
     val densities = kd.estimate(domain)
