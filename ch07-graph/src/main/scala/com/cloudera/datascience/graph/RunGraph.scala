@@ -61,7 +61,7 @@ object RunGraph extends Serializable {
 
     val topicComponentDF = topicGraph.vertices.innerJoin(
       connectedComponentGraph.vertices) {
-      (topicId, name, componentId) => (name, componentId)
+      (topicId, name, componentId) => (name, componentId.toLong)
     }.values.toDF("topic", "cid")
     topicComponentDF.where("cid = -6468702387578666337").show()
 
@@ -71,7 +71,7 @@ object RunGraph extends Serializable {
     val degrees: VertexRDD[Int] = topicGraph.degrees.cache()
     degrees.map(_._2).stats()
     degrees.innerJoin(topicGraph.vertices) {
-      (topicId, degree, name) => (name, degree)
+      (topicId, degree, name) => (name, degree.toInt)
     }.values.toDF("topic", "degree").orderBy(desc("degree")).show()
 
     val T = medline.count()
