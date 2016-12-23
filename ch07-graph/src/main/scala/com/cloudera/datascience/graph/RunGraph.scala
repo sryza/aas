@@ -62,7 +62,7 @@ object RunGraph extends Serializable {
     val topicComponentDF = topicGraph.vertices.innerJoin(
       connectedComponentGraph.vertices) {
       (topicId, name, componentId) => (name, componentId)
-    }.toDF("topic", "cid")
+    }.values.toDF("topic", "cid")
     topicComponentDF.where("cid = -6468702387578666337").show()
 
     val hiv = spark.sql("SELECT * FROM topic_dist WHERE topic LIKE '%hiv%'")
@@ -72,7 +72,7 @@ object RunGraph extends Serializable {
     degrees.map(_._2).stats()
     degrees.innerJoin(topicGraph.vertices) {
       (topicId, degree, name) => (name, degree)
-    }.toDF("topic", "degree").orderBy(desc("degree")).show()
+    }.values.toDF("topic", "degree").orderBy(desc("degree")).show()
 
     val T = medline.count()
     val topicDistRdd = topicDist.map { case Row(topic: String, cnt: Long) => (hashId(topic), cnt) }.rdd
