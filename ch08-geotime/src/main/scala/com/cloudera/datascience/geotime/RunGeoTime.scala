@@ -40,9 +40,7 @@ object RunGeoTime extends Serializable {
 
     val taxiRaw = spark.read.option("header", "true").csv("taxidata")
     val taxiParsed = taxiRaw.rdd.map(safe(parse))
-    val taxiGood = taxiParsed.collect({
-      case t if t.isLeft => t.left.get
-    }).toDS
+    val taxiGood = taxiParsed.map(_.left.get).toDS
     taxiGood.cache()
 
     val hours = (pickup: Long, dropoff: Long) => {
@@ -66,7 +64,7 @@ object RunGeoTime extends Serializable {
 
     val bFeatures = spark.sparkContext.broadcast(areaSortedFeatures)
 
-    val borough = (x: Double, y: Double) => {
+    val bLookup = (x: Double, y: Double) => {
       val feature: Option[Feature] = bFeatures.value.find(f => {
         f.geometry.contains(new Point(x, y))
       })
@@ -74,7 +72,7 @@ object RunGeoTime extends Serializable {
         f("borough").convertTo[String]
       }).getOrElse("NA")
     }
-    val boroughUDF = udf(borough)
+    val boroughUDF = udf(bLookup)
 
     taxiClean.groupBy(boroughUDF($"dropoffX", $"dropoffY")).count().show()
     val taxiDone = taxiClean.where("dropoffX != 0 and dropoffY != 0 and pickupX != 0 and pickupY != 0")
@@ -87,7 +85,7 @@ object RunGeoTime extends Serializable {
         sortWithinPartitions($"license", $"pickupTime").
         cache()
     def boroughDuration(t1: Trip, t2: Trip): (String, Long) = {
-      val b = borough(t1.dropoffX, t1.dropoffY)
+      val b = bLookup(t1.dropoffX, t1.dropoffY)
       val d = (t2.pickupTime - t1.dropoffTime) / 1000
       (b, d)
     }
@@ -119,20 +117,27 @@ object RunGeoTime extends Serializable {
     }
   }
 
-  def parseTaxiTime(datetime: Option[String]): Long = {
-    val formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH)
-    datetime.map(dt => formatter.parse(dt).getTime).getOrElse(0L)
+  def parseTaxiTime(rr: RichRow, timeField: String): Long = {
+    val formatter = new SimpleDateFormat(
+       "yyyy-MM-dd HH:mm:ss", Locale.ENGLISH)
+    val optDt = rr.getAs[String](timeField)
+    optDt.map(dt => formatter.parse(dt).getTime).getOrElse(0L)
+  }
+
+  def parseTaxiLoc(rr: RichRow, locField: String): Double = {
+    rr.getAs[String](locField).map(_.toDouble).getOrElse(0.0)
   }
 
   def parse(line: Row): Trip = {
-    val fields = new RichRow(line)
-    val license = fields.getAs[String]("hack_license").orNull
-    val pickupTime = parseTaxiTime(fields.getAs[String]("pickup_datetime"))
-    val dropoffTime = parseTaxiTime(fields.getAs[String]("dropoff_datetime"))
-    val pickupX = fields.getAs[String]("pickup_longitude").map(_.toDouble).getOrElse(0.0)
-    val pickupY = fields.getAs[String]("pickup_latitude").map(_.toDouble).getOrElse(0.0)
-    val dropoffX = fields.getAs[String]("dropoff_longitude").map(_.toDouble).getOrElse(0.0)
-    val dropoffY = fields.getAs[String]("dropoff_latitude").map(_.toDouble).getOrElse(0.0)
-    Trip(license, pickupTime, dropoffTime, pickupX, pickupY, dropoffX, dropoffY)
+    val rr = new RichRow(line)
+    Trip(
+      license = rr.getAs[String]("hack_license").orNull,
+      pickupTime = parseTaxiTime(rr, "pickup_datetime"),
+      dropoffTime = parseTaxiTime(rr, "dropoff_datetime"),
+      pickupX = parseTaxiLoc(rr, "pickup_longitude"),
+      pickupY = parseTaxiLoc(rr, "pickup_latitude"),
+      dropoffX = parseTaxiLoc(rr, "dropoff_longitude"),
+      dropoffY = parseTaxiLoc(rr, "dropoff_latitude")
+    )
   }
 }

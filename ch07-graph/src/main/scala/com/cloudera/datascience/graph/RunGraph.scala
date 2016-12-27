@@ -64,10 +64,10 @@ object RunGraph extends Serializable {
       connectedComponentGraph.vertices) {
       (topicId, name, componentId) => (name, componentId.toLong)
     }.values.toDF("topic", "cid")
-    topicComponentDF.where("cid = -6468702387578666337").show()
+    topicComponentDF.where("cid = -2062883918534425492").show()
 
-    val hiv = spark.sql("SELECT * FROM topic_dist WHERE topic LIKE '%hiv%'")
-    hiv.show()
+    val campy = spark.sql("SELECT * FROM topic_dist WHERE topic LIKE '%ampylobacter%'")
+    campy.show()
 
     val degrees: VertexRDD[Int] = topicGraph.degrees.cache()
     degrees.map(_._2).stats()
