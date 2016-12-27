@@ -50,7 +50,7 @@ object RunGeoTime extends Serializable {
     }
     val hoursUDF = udf(hours)
 
-    taxiGood.groupBy(hoursUDF($"pickupTime", $"dropoffTime")).count().show()
+    taxiGood.groupBy(hoursUDF($"pickupTime", $"dropoffTime").as("h")).count().sort("h").show()
 
     // register the UDF, use it in a where clause
     spark.udf.register("hours", hours)
@@ -82,8 +82,10 @@ object RunGeoTime extends Serializable {
 
     taxiGood.unpersist()
 
-    val sessions = taxiDone.repartition('license).sortWithinPartitions('license, 'pickupTime)
-
+    val sessions = taxiDone.
+        repartition($"license").
+        sortWithinPartitions($"license", $"pickupTime").
+        cache()
     def boroughDuration(t1: Trip, t2: Trip): (String, Long) = {
       val b = borough(t1.dropoffX, t1.dropoffY)
       val d = (t2.pickupTime - t1.dropoffTime) / 1000
@@ -96,11 +98,11 @@ object RunGeoTime extends Serializable {
         val viter = iter.filter(_.size == 2).filter(p => p(0).license == p(1).license)
         viter.map(p => boroughDuration(p(0), p(1)))
       }).toDF("borough", "seconds")
-    boroughDurations
-      .where("seconds > 0 AND seconds < 4*60*60")
-      .groupBy("borough")
-      .agg(avg("seconds"))
-      .show()
+    boroughDurations.
+      where("seconds > 0").
+      groupBy("borough").
+      agg(avg("seconds"), stddev("seconds")).
+      show()
 
     boroughDurations.unpersist()
   }
