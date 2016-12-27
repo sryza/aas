@@ -38,17 +38,6 @@
       <groupId>edu.umd</groupId>
       <artifactId>cloud9</artifactId>
     </dependency>
-    <!-- This is only here for edu.umd:cloud9 -->
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>14.0.1</version>
-    </dependency>
-    <dependency>
-      <groupId>info.bliki.wiki</groupId>
-      <artifactId>bliki-core</artifactId>
-      <version>3.0.19</version>
-    </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-client</artifactId>

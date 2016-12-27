@@ -116,10 +116,22 @@
         <artifactId>commons-math3</artifactId>
         <version>3.6.1</version>
       </dependency>
+      <!-- Managed up for Spark compatibility -->
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>14.0.1</version>
+      </dependency>
       <dependency>
         <groupId>edu.umd</groupId>
         <artifactId>cloud9</artifactId>
         <version>1.5.0</version>
+      </dependency>
+      <!-- This is only here for edu.umd:cloud9 which depends on non-existent 3.0.16 -->
+      <dependency>
+        <groupId>info.bliki.wiki</groupId>
+        <artifactId>bliki-core</artifactId>
+        <version>3.0.19</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -190,7 +202,7 @@
     <maven.version.min>3.2.5</maven.version.min>
     <scala.minor.version>2.11</scala.minor.version>
     <scala.complete.version>${scala.minor.version}.8</scala.complete.version>
-    <spark.version>2.0.2</spark.version>
+    <spark.version>2.1.0</spark.version>
   </properties>
 
   <dependencies>
@@ -300,7 +312,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.5.1</version>
+          <version>3.6.0</version>
           <configuration>
             <skip>true</skip> <!-- scala plugin compiles everything -->
           </configuration>
@@ -334,7 +346,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-assembly-plugin</artifactId>
-          <version>2.6</version>
+          <version>3.0.0</version>
           <configuration>
             <descriptorRefs>
               <descriptorRef>jar-with-dependencies</descriptorRef>
@@ -358,7 +370,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-resources-plugin</artifactId>
-          <version>3.0.1</version>
+          <version>3.0.2</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -368,7 +380,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>2.10</version>
+          <version>3.0.0</version>
           <executions>
             <execution>
               <id>copy-dependencies</id>
