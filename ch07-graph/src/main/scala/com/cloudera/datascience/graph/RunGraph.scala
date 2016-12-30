@@ -42,8 +42,9 @@ object RunGraph extends Serializable {
     val cooccurs = spark.sql("SELECT pairs, COUNT(*) cnt FROM topic_pairs GROUP BY pairs")
     cooccurs.cache()
 
+    cooccurs.createOrReplaceTempView("cooccurs")
     println("Number of unique co-occurrence pairs: " + cooccurs.count())
-    spark.sql("SELECT pairs, cnt FROM topic_pairs ORDER BY cnt DESC LIMIT 10").show()
+    spark.sql("SELECT pairs, cnt FROM cooccurs ORDER BY cnt DESC LIMIT 10").show()
 
     val vertices = topics.map { case Row(topic: String) => (hashId(topic), topic) }.toDF("hash", "topic")
     val edges = cooccurs.map { case Row(topics: Seq[_], cnt: Long) =>
