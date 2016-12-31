@@ -16,7 +16,7 @@ plt.ion()
 
 # load some zebrafish brain data
 path_to_images = ('path/to/thunder/python/thunder/utils/data/fish/tif-stack')
-imagesRDD = tsc.loadImages(path_to_images, inputformat='tif-stack')
+imagesRDD = tsc.loadImages(path_to_images, inputFormat='tif-stack')
 
 # explore the resulting object
 print imagesRDD
@@ -24,7 +24,7 @@ print imagesRDD.rdd
 print imagesRDD.first()
 print imagesRDD.first()[1].shape
 print imagesRDD.dims
-print imagesRDD.nimages
+print imagesRDD.nrecords
 
 # plot the raw data
 img = imagesRDD.values().first()
@@ -66,13 +66,14 @@ seriesRDD.apply(lambda x: x.argmin())
 ###############################
 
 import numpy as np
+import seaborn as sns
 from thunder import KMeans
 
 seriesRDD = tsc.loadSeries('path/to/thunder/python/thunder/utils/data/fish/bin')
 print seriesRDD.dims
 print seriesRDD.index
 
-normalizedRDD = seriesRDD.normalize(baseline='mean')
+normalizedRDD = seriesRDD.toTimeSeries().normalize(baseline='mean')
 stddevs = (normalizedRDD
     .seriesStdev()
     .values()
@@ -90,12 +91,11 @@ for k in ks:
 # define a couple functions to score the clustering quality
 def model_error_1(model):
     def series_error(series):
-        cluster_id = model.predict(series)
+        cluster_id = model.predict(np.asarray(series[1]))
         center = model.centers[cluster_id]
-        diff = center - series
+        diff = center - np.asarray(series[1])
         return diff.dot(diff) ** 0.5
-    
-    return normalizedRDD.apply(series_error).sum()
+    return normalizedRDD.apply(series_error).rdd.sum()
 
 def model_error_2(model):
     return 1. / model.similarity(normalizedRDD).sum()
