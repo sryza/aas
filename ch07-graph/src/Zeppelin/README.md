@@ -2,6 +2,8 @@
 
 **Getting Started**
 
+You can directly import note.json file to Zeppelin.
+
 Created with Zeppelin Version 0.7.0-SNAPSHOT
 
 Spark 2.0.2 or newer version is required. 
