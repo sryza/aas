@@ -7,7 +7,7 @@
 package com.cloudera.datascience.intro
 
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
-import org.apache.spark.sql.functions._ // for lit()
+import org.apache.spark.sql.functions._ // for lit(), first(), etc.
 
 case class MatchData(
   id_1: Int,
@@ -23,8 +23,6 @@ case class MatchData(
   cmp_plz: Option[Int],
   is_match: Boolean
 )
-
-case class Scored(score: Double, is_match: Boolean)
 
 object RunIntro extends Serializable {
   def main(args: Array[String]): Unit = {
@@ -42,13 +40,13 @@ object RunIntro extends Serializable {
       .option("nullValue", "?")
       .option("inferSchema", "true")
       .csv("hdfs:///user/ds/linkage")
-      .cache()
     parsed.show()
     val schema = parsed.schema
     schema.foreach(println)
 
     parsed.count()
-    parsed.groupBy("is_match").count().show()
+    parsed.cache()
+    parsed.groupBy("is_match").count().orderBy($"count".desc).show()
 
     parsed.createOrReplaceTempView("linkage")
     spark.sql("""
@@ -60,75 +58,63 @@ object RunIntro extends Serializable {
 
     val summary = parsed.describe()
     summary.show()
-    summary.select("summary", "cmp_fname_c1", "cmp_lname_c1").show()
-    summary.select("summary", "cmp_fname_c2", "cmp_lname_c2").show()
+    summary.select("summary", "cmp_fname_c1", "cmp_fname_c2").show()
 
-    val matches = parsed.filter("is_match = true")
+    val matches = parsed.where("is_match = true")
     val misses = parsed.filter($"is_match" === lit(false))
     val matchSummary = matches.describe()
     val missSummary = misses.describe()
 
-    val matchSummaryLong = longForm(matchSummary)
-    val missSummaryLong = longForm(missSummary)
-    matchSummaryLong.createOrReplaceTempView("match_long")
-    missSummaryLong.createOrReplaceTempView("miss_long")
+    val matchSummaryT = pivotSummary(matchSummary)
+    val missSummaryT = pivotSummary(missSummary)
+    matchSummaryT.createOrReplaceTempView("match_desc")
+    missSummaryT.createOrReplaceTempView("miss_desc")
     spark.sql("""
       SELECT a.field, a.count + b.count total, a.mean - b.mean delta
-      FROM match_long a INNER JOIN miss_long b ON a.field = b.field
+      FROM match_desc a INNER JOIN miss_desc b ON a.field = b.field
       ORDER BY delta DESC, total DESC
     """).show()
 
-    val scoredDF = parsed.map { row =>
-      (scoreRow(row), row.getAs[Boolean]("is_match"))
-    }.toDF("score", "is_match")
-
-    crossTabs(scoredDF).show()
-
     val matchData = parsed.as[MatchData]
-    val scoredDS = matchData.map(md => {
-      Scored(scoreMatchData(md), md.is_match)
-    })
-    crossTabs(scoredDS).show()
+    val scored = matchData.map(md => {
+      (scoreMatchData(md), md.is_match)
+    }).toDF("score", "is_match")
+    crossTabs(scored, 4.0).show()
   }
 
-  def crossTabs(scored: Dataset[_]): DataFrame = {
+  def crossTabs(scored: DataFrame, t: Double): DataFrame = {
     scored.
-      selectExpr("score >= 4.0 as above", "is_match").
+      selectExpr(s"score >= $t as above", "is_match").
       groupBy("above").
       pivot("is_match", Seq("true", "false")).
       count()
   }
 
-  def getDoubleOrZero(row: Row, idx: Int): Double = {
-    if (row.isNullAt(idx)) 0.0 else row.get(idx).toString.toDouble
-  }
-
-  def scoreRow(row: Row): Double = {
-    Seq("cmp_plz", "cmp_by", "cmp_bd", "cmp_lname_c1", "cmp_bm").map { f =>
-      getDoubleOrZero(row, row.fieldIndex(f))
-    }.sum
+  case class Score(value: Double) {
+    def +(oi: Option[Int]) = {
+      Score(value + oi.getOrElse(0))
+    }
   }
 
   def scoreMatchData(md: MatchData): Double = {
-    val oid = (oi: Option[Int]) => oi.map(_.toDouble).getOrElse(0.0)
-    oid(md.cmp_plz) + oid(md.cmp_by) + oid(md.cmp_bd) +
-    md.cmp_lname_c1.getOrElse(0.0) + oid(md.cmp_bm)
+    (Score(md.cmp_lname_c1.getOrElse(0.0)) + md.cmp_plz +
+        md.cmp_by + md.cmp_bd + md.cmp_bm).value
+  }
+
+  def pivotSummary(desc: DataFrame): DataFrame = {
+    val lf = longForm(desc)
+    lf.groupBy("field").
+      pivot("metric", Seq("count", "mean", "stddev", "min", "max")).
+      agg(first("value"))
   }
 
   def longForm(desc: DataFrame): DataFrame = {
     import desc.sparkSession.implicits._ // For toDF RDD -> DataFrame conversion
-
     val schema = desc.schema
-    desc.rdd.flatMap(row => {
+    desc.flatMap(row => {
       val metric = row.getString(0)
-      (1 until row.size).map(i => (schema(i).name, (metric, row.getString(i).toDouble)))
+      (1 until row.size).map(i => (metric, schema(i).name, row.getString(i).toDouble))
     })
-    .groupByKey()
-    .map(kv => {
-      val field = kv._1
-      val m = kv._2.toMap
-      (field, m("count"), m("mean"), m("stddev"), m("min"), m("max"))
-    })
-    .toDF("field", "count", "mean", "stddev", "min", "max")
+    .toDF("metric", "field", "value")
   }
 }
