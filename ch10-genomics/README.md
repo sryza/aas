@@ -1,3 +1,16 @@
+Setting up ADAM
+===============
+
+After checking out ADAM, run the following commands in the `scripts/` dir:
+
+```bash
+scripts/move_to_scala_2.11.sh
+scripts/move_to_spark_2.sh
+
+mvn clean package
+```
+
+
 ENCODE TF Prediction
 ====================
 
@@ -68,13 +81,14 @@ curl -s -L "https://www.encodeproject.org/files/ENCFF001XRC/@@download/ENCFF001X
 phyloP data:
 
 ```bash
+# NOTE: this requires the BEDOPS CLI for converting Wiggle files into BED files
 hadoop fs -mkdir /user/ds/genomics/phylop_text
 for i in $(seq 1 22); do
     echo "chr$i.phyloP46way.wigFix.gz"
-    curl -s -L "http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/phyloP46way/vertebrate/chr$i.phyloP46way.wigFix.gz" | gunzip | adam-submit wigfix2bed | hadoop fs -put - "/user/ds/genomics/phylop_text/chr$i.phyloP46way.wigFix"
+    curl -s -L "http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/phyloP46way/vertebrate/chr$i.phyloP46way.wigFix.gz" | gunzip | wig2bed -d | hadoop fs -put - "/user/ds/genomics/phylop_text/chr$i.phyloP46way.wigFix"
 done
-curl -s -L "http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/phyloP46way/vertebrate/chrX.phyloP46way.wigFix.gz" | gunzip | adam-submit wigfix2bed | hadoop fs -put - /user/ds/genomics/phylop_text/chrX.phyloP46way.wigFix
-curl -s -L "http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/phyloP46way/vertebrate/chrY.phyloP46way.wigFix.gz" | gunzip | adam-submit wigfix2bed | hadoop fs -put - /user/ds/genomics/phylop_text/chrY.phyloP46way.wigFix
+curl -s -L "http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/phyloP46way/vertebrate/chrX.phyloP46way.wigFix.gz" | gunzip | wig2bed -d | hadoop fs -put - /user/ds/genomics/phylop_text/chrX.phyloP46way.wigFix
+curl -s -L "http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/phyloP46way/vertebrate/chrY.phyloP46way.wigFix.gz" | gunzip | wig2bed -d | hadoop fs -put - /user/ds/genomics/phylop_text/chrY.phyloP46way.wigFix
 ```
 
 In a Spark shell, we then convert the PhyloP data from text to Parquet, to
@@ -82,7 +96,8 @@ improve performance:
 
 ```scala
 // Convert phyloP data to Parquet for better performance; run once
-sc.adamBEDFeatureLoad("/user/ds/genomics/phylop_text").adamSave("/user/ds/genomics/phylop")
+import org.bdgenomics.adam.rdd.ADAMContext._
+sc.loadBed("/user/ds/genomics/phylop_text").saveAsParquet("/user/ds/genomics/phylop")
 ```
 
 hg19 genome data:
@@ -91,8 +106,9 @@ hg19 genome data:
 curl -s -L -O "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/bigZips/hg19.2bit"
 ```
 
-The code for the TF binding site prediction data preparation can be found in `g
-enomics/src/main/scala/com/cloudera/datascience/genomics/RunTFPrediction.scala`
+The code for the TF binding site prediction data preparation can be found in
+
+    genomics/src/main/scala/com/cloudera/datascience/genomics/RunTFPrediction.scala
 
 
 Genome Variant Analysis
@@ -125,43 +141,19 @@ parallelized across the cluster):
     curl -s -L ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20110521/ALL.chr22.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf.gz | gunzip | hadoop fs -put - /user/ds/genomics/1kg/vcf/ALL.chr22.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf
     curl -s -L ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20110521/ALL.chrX.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf.gz | gunzip | hadoop fs -put - /user/ds/genomics/1kg/vcf/ALL.chrX.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf
 
+Convert to parquet
 
-Convert each file to parquet
-
-    export SPARK_JAR_PATH=hdfs:///user/laserson/tmp/spark-assembly-1.2.1-hadoop2.4.0.jar
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr1.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr1
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr2.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr2
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr3.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr3
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr4.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr4
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr5.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr5
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr6.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr6
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr7.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr7
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr8.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr8
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr9.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr9
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr10.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr10
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr11.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr11
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr12.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr12
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr13.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr13
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr14.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr14
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr15.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr15
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr16.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr16
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr17.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr17
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr18.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr18
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr19.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr19
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr20.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr20
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr21.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr21
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chr22.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chr22
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 3 --executor-cores 2 --executor-memory 4G vcf2adam -coalesce 5 /user/ds/genomics/1kg/vcf/ALL.chrX.phase1_release_v3.20101123.snps_indels_svs.genotypes.vcf /user/ds/genomics/1kg/parquet/chrX
-
-
-Convert to ADAM
-
-    export HADOOP_CONF_DIR=/etc/hadoop/conf
-    export SPARK_HOME=/home/laserson/spark
-    export SPARK_JAR_PATH=hdfs:///user/laserson/tmp/spark-assembly-1.2.1-hadoop2.4.0.jar
-    adam/bin/adam-submit --conf spark.yarn.jar=$SPARK_JAR_PATH --master yarn-cluster --driver-memory 4G --num-executors 6 --executor-cores 12 --executor-memory 4G vcf2adam -onlyvariants /user/ds/genomics/exac/vcf/ExAC.r0.2.sites.vep.vcf /user/ds/genomics/exac/parquet
-
-
+    adam/bin/adam-submit \
+        --master yarn \
+        --deploy-mode client \
+        --driver-memory 8G \
+        --num-executors 192 \
+        --executor-cores 4 \
+        --executor-memory 16G \
+        -- \
+        vcf2adam \
+        /user/laseru01/ch10/1kg/vcf \
+        /user/laseru01/ch10/1kg/parquet
 
 
 
