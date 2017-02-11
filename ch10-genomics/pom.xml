@@ -33,9 +33,8 @@
   </repositories>
 
   <properties>
-    <adam.version>0.16.0</adam.version>
-    <bdg.formats.version>0.4.0</bdg.formats.version>
-    <bdg.utils.parquet.version>0.1.1</bdg.utils.parquet.version>
+    <adam.version>0.21.0</adam.version>
+    <bdg.formats.version>0.10.1</bdg.formats.version>
   </properties>
 
   <dependencies>
@@ -46,13 +45,8 @@
     </dependency>
     <dependency>
       <groupId>org.bdgenomics.adam</groupId>
-      <artifactId>adam-core</artifactId>
+      <artifactId>adam-core-spark2_2.11</artifactId>
       <version>${adam.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.bdgenomics.bdg-utils</groupId>
-      <artifactId>bdg-utils-parquet</artifactId>
-      <version>${bdg.utils.parquet.version}</version>
     </dependency>
   </dependencies>
 
