@@ -2,7 +2,7 @@ Advanced Analytics with Spark Source Code
 =========================================
 
 Code to accompany [Advanced Analytics with Spark](http://shop.oreilly.com/product/0636920035091.do), 
-by [Juliet Hougland](https://github.com/jhlch), [Uri Laserson](https://github.com/laserson), 
+by [Uri Laserson](https://github.com/laserson), 
 [Sean Owen](https://github.com/srowen), [Sandy Ryza](https://github.com/sryza),
 and [Josh Wills](https://github.com/jwills).
 

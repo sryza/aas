@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
- Copyright 2015 and onwards Sanford Ryza, Juliet Hougland, Uri Laserson, Sean Owen and Joshua Wills
+ Copyright 2015 and onwards Sanford Ryza, Uri Laserson, Sean Owen and Joshua Wills
 
  See LICENSE file for further information.
  -->
@@ -140,11 +140,6 @@
   <inceptionYear>2014</inceptionYear>
   <developers>
     <developer>
-      <id>jhlch</id>
-      <name>Juliet Hougland</name>
-      <organization>Cloudera</organization>
-    </developer>
-    <developer>
       <id>laserson</id>
       <name>Uri Laserson</name>
       <organization>Icahn School of Medicine</organization>
@@ -267,7 +262,7 @@
             <licenses>
               <license implementation="org.apache.rat.analysis.license.SimplePatternBasedLicense">
                 <patterns>
-                  <pattern>Copyright 2015 and onwards Sanford Ryza, Juliet Hougland, Uri Laserson, Sean Owen and Joshua Wills</pattern>
+                  <pattern>Copyright 2015 and onwards Sanford Ryza, Uri Laserson, Sean Owen and Joshua Wills</pattern>
                 </patterns>
               </license>
             </licenses>
