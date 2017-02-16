@@ -174,17 +174,16 @@ class RunRDF(private val spark: SparkSession) {
       setEstimatorParamMaps(paramGrid).
       setTrainRatio(0.9)
 
-    //spark.sparkContext.setLogLevel("DEBUG")
     val validatorModel = validator.fit(trainData)
-    /*
-    DEBUG TrainValidationSplit: Got metric 0.6315930234779452 for model trained with {
-      dtc_ca0f064d06dd-impurity: gini,
-      dtc_ca0f064d06dd-maxBins: 10,
-      dtc_ca0f064d06dd-maxDepth: 1,
-      dtc_ca0f064d06dd-minInfoGain: 0.0
-    }.
-    */
-    //spark.sparkContext.setLogLevel("WARN")
+
+    val paramsAndMetrics = validatorModel.validationMetrics.
+      zip(validatorModel.getEstimatorParamMaps).sortBy(-_._1)
+
+    paramsAndMetrics.foreach { case (metric, params) =>
+        println(metric)
+        println(params)
+        println()
+    }
 
     val bestModel = validatorModel.bestModel
 
