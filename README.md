@@ -6,7 +6,7 @@ by [Uri Laserson](https://github.com/laserson),
 [Sean Owen](https://github.com/srowen), [Sandy Ryza](https://github.com/sryza),
 and [Josh Wills](https://github.com/jwills).
 
-[![Advanced Analytics with Spark](http://akamaicovers.oreilly.com/images/0636920035091/lrg.jpg)](http://shop.oreilly.com/product/0636920035091.do)
+[![Advanced Analytics with Spark](http://akamaicovers.oreilly.com/images/0636920056591/lrg.jpg)](http://shop.oreilly.com/product/0636920056591.do)
 
 ### 1st Edition (current)
 
@@ -20,7 +20,8 @@ The source to accompany the 2nd edition is found in this, the default
 
 ### Build
 
-[Apache Maven](http://maven.apache.org/) 3.2.5+ and Java 8+ are required to build. From the root level of the project, run `mvn package` to compile artifacts into `target/` subdirectories beneath each chapter's directory.
+[Apache Maven](http://maven.apache.org/) 3.2.5+ and Java 8+ are required to build. From the root level of the project, 
+run `mvn package` to compile artifacts into `target/` subdirectories beneath each chapter's directory.
 
 ### Data Sets
 
