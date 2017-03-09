@@ -42,6 +42,8 @@ class RunRecommender(private val spark: SparkSession) {
       rawArtistData: Dataset[String],
       rawArtistAlias: Dataset[String]): Unit = {
 
+    rawUserArtistData.take(5).foreach(println)
+
     val userArtistDF = rawUserArtistData.map { line =>
       val Array(user, artist, _*) = line.split(' ')
       (user.toInt, artist.toInt)
