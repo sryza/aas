@@ -33,8 +33,7 @@ object RunLSA {
     docTermMatrix.cache()
 
     val vecRdd = docTermMatrix.select("tfidfVec").rdd.map { row =>
-      val sparseVec = row.getAs[MLVector]("tfidfVec").toSparse
-      Vectors.sparse(sparseVec.size, sparseVec.indices, sparseVec.values)
+      Vectors.fromML(row.getAs[MLVector]("tfidfVec"))
     }
 
     vecRdd.cache()
