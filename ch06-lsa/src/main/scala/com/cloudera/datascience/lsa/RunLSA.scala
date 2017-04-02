@@ -220,12 +220,19 @@ class LSAQueryEngine(
     allDocWeights.filter(!_._1.isNaN).top(10)
   }
 
+  /**
+    * Builds a term query vector from a set of terms.
+    */
   def termsToQueryVector(terms: Seq[String]): BSparseVector[Double] = {
     val indices = terms.map(idTerms(_)).toArray
     val values = indices.map(termIdfs(_))
     new BSparseVector[Double](indices, values, idTerms.size)
   }
 
+  /**
+    * Finds docs relevant to a term query, represented as a vector with non-zero weights for the
+    * terms in the query.
+    */
   def topDocsForTermQuery(query: BSparseVector[Double]): Seq[(Double, Long)] = {
     val breezeV = new BDenseMatrix[Double](svd.V.numRows, svd.V.numCols, svd.V.toArray)
     val termRowArr = (breezeV.t * query).toArray
