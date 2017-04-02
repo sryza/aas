@@ -20,7 +20,7 @@ import scala.collection.mutable.ArrayBuffer
 object RunLSA {
   def main(args: Array[String]): Unit = {
     val k = if (args.length > 0) args(0).toInt else 100
-    val numTerms = if (args.length > 1) args(1).toInt else 50000
+    val numTerms = if (args.length > 1) args(1).toInt else 20000
 
     val spark = SparkSession.builder().config("spark.serializer", classOf[KryoSerializer].getName).getOrCreate()
     val assembleMatrix = new AssembleDocumentTermMatrix(spark)
