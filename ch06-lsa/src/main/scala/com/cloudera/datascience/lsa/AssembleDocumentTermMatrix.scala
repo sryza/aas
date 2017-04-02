@@ -103,11 +103,11 @@ class AssembleDocumentTermMatrix(private val spark: SparkSession) extends Serial
    * Returns a document-term matrix where each element is the TF-IDF of the row's document and
    * the column's term.
    *
-   * @param docs a DF with two columns: title and text
+   * @param docTexts a DF with two columns: title and text
    */
-  def documentTermMatrix(docs: Dataset[(String, String)], stopWordsFile: String, numTerms: Int)
+  def documentTermMatrix(docTexts: Dataset[(String, String)], stopWordsFile: String, numTerms: Int)
     : (DataFrame, Array[String], Map[Long, String], Array[Double]) = {
-    val terms = contentsToTerms(docs, stopWordsFile)
+    val terms = contentsToTerms(docTexts, stopWordsFile)
 
     val termsDF = terms.toDF("title", "terms")
     val filtered = termsDF.where(size($"terms") > 1)
@@ -121,8 +121,7 @@ class AssembleDocumentTermMatrix(private val spark: SparkSession) extends Serial
 
     docTermFreqs.cache()
 
-    val docIdsDF = docTermFreqs.withColumn("id", monotonically_increasing_id)
-    val docIds = docIdsDF.select("id", "title").as[(Long, String)].collect().toMap
+    val docIds = docTermFreqs.rdd.map(_.getString(0)).zipWithUniqueId().map(_.swap).collect().toMap
 
     val idf = new IDF().setInputCol("termFreqs").setOutputCol("tfidfVec")
     val idfModel = idf.fit(docTermFreqs)

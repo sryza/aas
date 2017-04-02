@@ -39,6 +39,10 @@
       <artifactId>cloud9</artifactId>
     </dependency>
     <dependency>
+      <groupId>info.bliki.wiki</groupId>
+      <artifactId>bliki-core</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-client</artifactId>
     </dependency>
