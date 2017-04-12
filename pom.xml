@@ -178,10 +178,6 @@
     <tag>HEAD</tag>
   </scm>
 
-  <prerequisites>
-    <maven>${maven.version.min}</maven>
-  </prerequisites>
-
   <modules>
     <module>ch02-intro</module>
     <module>ch03-recommender</module>
@@ -200,7 +196,6 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <hadoop.version>2.7.3</hadoop.version>
     <java.version>1.8</java.version>
-    <maven.version.min>3.2.5</maven.version.min>
     <scala.minor.version>2.11</scala.minor.version>
     <scala.complete.version>${scala.minor.version}.8</scala.complete.version>
     <spark.version>2.1.0</spark.version>
@@ -243,7 +238,7 @@
                 <rules>
                   <requireModuleConvergence/>
                   <requireMavenVersion>
-                    <version>${maven.version.min}</version>
+                    <version>3.2.5</version>
                   </requireMavenVersion>
                   <requireJavaVersion>
                     <version>${java.version}</version>
@@ -318,7 +313,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.6.0</version>
+          <version>3.6.1</version>
           <configuration>
             <skip>true</skip> <!-- scala plugin compiles everything -->
           </configuration>

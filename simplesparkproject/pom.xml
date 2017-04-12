@@ -12,10 +12,6 @@
   <packaging>jar</packaging>
   <name>Simple Spark Project</name>
 
-  <prerequisites>
-    <maven>3.2.5</maven>
-  </prerequisites>
-
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
