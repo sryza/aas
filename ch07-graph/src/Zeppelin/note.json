@@ -1,0 +1,607 @@
+{
+  "paragraphs": [
+    {
+      "text": "import org.apache.hadoop.io.{Text, LongWritable}\nimport org.apache.hadoop.conf.Configuration\nimport edu.umd.cloud9.collection.XMLInputFormat\nimport org.apache.spark.sql.{Dataset, SparkSession, Row}\n\ndef loadMedline(spark: SparkSession, path: String): Dataset[String] \u003d {\n    import spark.implicits._\n    val conf \u003d new Configuration()\n    conf.set(XMLInputFormat.START_TAG_KEY, \"\u003cMedlineCitation \")\n    conf.set(XMLInputFormat.END_TAG_KEY, \"\u003c/MedlineCitation\u003e\")\n    val sc \u003d spark.sparkContext\n    val in \u003d sc.newAPIHadoopFile(path, classOf[XMLInputFormat],\n      classOf[LongWritable], classOf[Text], conf)\n    in.map(line \u003d\u003e line._2.toString).toDS()\n}",
+      "user": "sskapci",
+      "dateUpdated": "Jan 2, 2017 5:14:04 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367191306_-729504022",
+      "id": "20170102-152631_1531631337",
+      "dateCreated": "Jan 2, 2017 3:26:31 PM",
+      "dateStarted": "Jan 2, 2017 5:14:05 PM",
+      "dateFinished": "Jan 2, 2017 5:14:08 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "import scala.xml._\n  \n  \ndef majorTopics(record: String): Seq[String] \u003d {\n    val elem \u003d XML.loadString(record)\n    val dn \u003d elem \\\\ \"DescriptorName\"\n    val mt \u003d dn.filter(n \u003d\u003e (n \\ \"@MajorTopicYN\").text \u003d\u003d \"Y\")\n    mt.map(n \u003d\u003e n.text)\n}",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:14:05 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367433257_-1571198343",
+      "id": "20170102-153033_132659138",
+      "dateCreated": "Jan 2, 2017 3:30:33 PM",
+      "dateStarted": "Jan 2, 2017 5:14:05 PM",
+      "dateFinished": "Jan 2, 2017 5:14:09 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "val medlineRaw: Dataset[String] \u003d loadMedline(spark, \"hdfs://localhost/user/ds/medline\")\nval medline: Dataset[Seq[String]] \u003d medlineRaw.map(majorTopics).cache()",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:14:05 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367434881_-521603343",
+      "id": "20170102-153034_414414648",
+      "dateCreated": "Jan 2, 2017 3:30:34 PM",
+      "dateStarted": "Jan 2, 2017 5:14:08 PM",
+      "dateFinished": "Jan 2, 2017 5:14:18 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "val topics \u003d medline.flatMap(mesh \u003d\u003e mesh).toDF(\"topic\")\ntopics.createOrReplaceTempView(\"topics\")\nval topicDist \u003d spark.sql(\"SELECT topic, COUNT(*) cnt FROM topics GROUP BY topic ORDER BY cnt DESC\")\ntopicDist.show()\ntopicDist.createOrReplaceTempView(\"topic_dist\")\nspark.sql(\"SELECT cnt, COUNT(*) dist FROM topic_dist GROUP BY cnt ORDER BY dist DESC LIMIT 10\").show()",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:14:05 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367436488_436036669",
+      "id": "20170102-153036_1546005813",
+      "dateCreated": "Jan 2, 2017 3:30:36 PM",
+      "dateStarted": "Jan 2, 2017 5:14:09 PM",
+      "dateFinished": "Jan 2, 2017 5:15:21 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "val topicPairs \u003d medline.flatMap(_.sorted.combinations(2)).toDF(\"pairs\")\ntopicPairs.createOrReplaceTempView(\"topic_pairs\")\nval cooccurs \u003d spark.sql(\"SELECT pairs, COUNT(*) cnt FROM topic_pairs GROUP BY pairs\")\ncooccurs.cache()\n\ncooccurs.createOrReplaceTempView(\"cooccurs\")\nprintln(\"Number of unique co-occurrence pairs: \" + cooccurs.count())\nspark.sql(\"SELECT pairs, cnt FROM cooccurs ORDER BY cnt DESC LIMIT 10\").show()",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:14:05 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367437497_60136994",
+      "id": "20170102-153037_1603027253",
+      "dateCreated": "Jan 2, 2017 3:30:37 PM",
+      "dateStarted": "Jan 2, 2017 5:14:18 PM",
+      "dateFinished": "Jan 2, 2017 5:15:26 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "import java.security.MessageDigest\nimport java.nio.charset.StandardCharsets\n\ndef hashId(str: String): Long \u003d {\n    // This is effectively the same implementation as in Guava\u0027s Hashing, but \u0027inlined\u0027\n    // to avoid a dependency on Guava just for this. It creates a long from the first 8 bytes\n    // of the (16 byte) MD5 hash, with first byte as least-significant byte in the long.\n    val bytes \u003d MessageDigest.getInstance(\"MD5\").digest(str.getBytes(StandardCharsets.UTF_8))\n    (bytes(0) \u0026 0xFFL) |\n    ((bytes(1) \u0026 0xFFL) \u003c\u003c 8) |\n    ((bytes(2) \u0026 0xFFL) \u003c\u003c 16) |\n    ((bytes(3) \u0026 0xFFL) \u003c\u003c 24) |\n    ((bytes(4) \u0026 0xFFL) \u003c\u003c 32) |\n    ((bytes(5) \u0026 0xFFL) \u003c\u003c 40) |\n    ((bytes(6) \u0026 0xFFL) \u003c\u003c 48) |\n    ((bytes(7) \u0026 0xFFL) \u003c\u003c 56)\n}",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:14:05 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367439361_808088855",
+      "id": "20170102-153039_2032191447",
+      "dateCreated": "Jan 2, 2017 3:30:39 PM",
+      "dateStarted": "Jan 2, 2017 5:15:26 PM",
+      "dateFinished": "Jan 2, 2017 5:15:27 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "import org.apache.spark.graphx._\n\nval vertices \u003d topics.map { case Row(topic: String) \u003d\u003e (hashId(topic), topic) }.toDF(\"hash\", \"topic\")\nval edges \u003d cooccurs.map { case Row(topics: Seq[_], cnt: Long) \u003d\u003e\n    val ids \u003d topics.map(_.toString).map(hashId).sorted\n    Edge(ids(0), ids(1), cnt)\n}\nval vertexRDD \u003d vertices.rdd.map{ case Row(hash: Long, topic: String) \u003d\u003e (hash, topic) }\nval topicGraph \u003d Graph(vertexRDD, edges.rdd)\ntopicGraph.cache()",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:14:06 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367440761_45916608",
+      "id": "20170102-153040_816744679",
+      "dateCreated": "Jan 2, 2017 3:30:40 PM",
+      "dateStarted": "Jan 2, 2017 5:15:26 PM",
+      "dateFinished": "Jan 2, 2017 5:15:28 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "val connectedComponentGraph \u003d topicGraph.connectedComponents()\nval componentDF \u003d connectedComponentGraph.vertices.toDF(\"vid\", \"cid\")\nval componentCounts \u003d componentDF.groupBy(\"cid\").count()\ncomponentCounts.orderBy(desc(\"count\")).show()",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:14:06 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367505676_150461040",
+      "id": "20170102-153145_2119228829",
+      "dateCreated": "Jan 2, 2017 3:31:45 PM",
+      "dateStarted": "Jan 2, 2017 5:15:27 PM",
+      "dateFinished": "Jan 2, 2017 5:15:57 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "val topicComponentDF \u003d topicGraph.vertices.innerJoin(\n      connectedComponentGraph.vertices) {\n      (topicId, name, componentId) \u003d\u003e (name, componentId.toLong)\n      }.values.toDF(\"topic\", \"cid\")\ntopicComponentDF.where(\"cid \u003d -6468702387578666337\").show()",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:14:06 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367507489_-1176907341",
+      "id": "20170102-153147_625425752",
+      "dateCreated": "Jan 2, 2017 3:31:47 PM",
+      "dateStarted": "Jan 2, 2017 5:15:29 PM",
+      "dateFinished": "Jan 2, 2017 5:15:58 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "val hiv \u003d spark.sql(\"SELECT * FROM topic_dist WHERE topic LIKE \u0027%hiv%\u0027\")\nhiv.show()",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:14:06 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367508896_153169607",
+      "id": "20170102-153148_1635782045",
+      "dateCreated": "Jan 2, 2017 3:31:48 PM",
+      "dateStarted": "Jan 2, 2017 5:15:57 PM",
+      "dateFinished": "Jan 2, 2017 5:15:59 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "val degrees: VertexRDD[Int] \u003d topicGraph.degrees.cache()\ndegrees.map(_._2).stats()\ndegrees.innerJoin(topicGraph.vertices) {\n    (topicId, degree, name) \u003d\u003e (name, degree.toInt)\n}.values.toDF(\"topic\", \"degree\").orderBy(desc(\"degree\")).show()",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:27:35 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367511112_581010383",
+      "id": "20170102-153151_1818123173",
+      "dateCreated": "Jan 2, 2017 3:31:51 PM",
+      "dateStarted": "Jan 2, 2017 5:15:58 PM",
+      "dateFinished": "Jan 2, 2017 5:16:01 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "def chiSq(YY: Long, YB: Long, YA: Long, T: Long): Double \u003d {\n    val NB \u003d T - YB\n    val NA \u003d T - YA\n    val YN \u003d YA - YY\n    val NY \u003d YB - YY\n    val NN \u003d T - NY - YN - YY\n    val inner \u003d math.abs(YY * NN - YN * NY) - T / 2.0\n    T * math.pow(inner, 2) / (YA * NA * YB * NB)\n}",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:14:06 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367547043_-80929580",
+      "id": "20170102-153227_975603287",
+      "dateCreated": "Jan 2, 2017 3:32:27 PM",
+      "dateStarted": "Jan 2, 2017 5:15:59 PM",
+      "dateFinished": "Jan 2, 2017 5:16:01 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "val T \u003d medline.count()\nval topicDistRdd \u003d topicDist.map { case Row(topic: String, cnt: Long) \u003d\u003e (hashId(topic), cnt) }.rdd\nval topicDistGraph \u003d Graph(topicDistRdd, topicGraph.edges)\nval chiSquaredGraph \u003d topicDistGraph.mapTriplets(triplet \u003d\u003echiSq(triplet.attr, triplet.srcAttr, triplet.dstAttr, T))\nchiSquaredGraph.edges.map(x \u003d\u003e x.attr).stats()",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:27:35 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367548832_-573792921",
+      "id": "20170102-153228_759302126",
+      "dateCreated": "Jan 2, 2017 3:32:28 PM",
+      "dateStarted": "Jan 2, 2017 5:16:01 PM",
+      "dateFinished": "Jan 2, 2017 5:16:12 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "val interesting \u003d chiSquaredGraph.subgraph(triplet \u003d\u003e triplet.attr \u003e 19.5)\nval interestingComponentGraph \u003d interesting.connectedComponents()\nval icDF \u003d interestingComponentGraph.vertices.toDF(\"vid\", \"cid\")\nval icCountDF \u003d icDF.groupBy(\"cid\").count()\nicCountDF.count()\nicCountDF.orderBy(desc(\"count\")).show()",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:28:19 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367550424_401930290",
+      "id": "20170102-153230_427390170",
+      "dateCreated": "Jan 2, 2017 3:32:30 PM",
+      "dateStarted": "Jan 2, 2017 5:16:01 PM",
+      "dateFinished": "Jan 2, 2017 5:18:14 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "val interestingDegrees \u003d interesting.degrees.cache()\ninterestingDegrees.map(_._2).stats()\ninterestingDegrees.innerJoin(topicGraph.vertices) {\n    (topicId, degree, name) \u003d\u003e (name, degree)\n}.toDF(\"topic\", \"degree\").orderBy(desc(\"degree\")).show()",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:14:07 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367586623_1304413292",
+      "id": "20170102-153306_2066889094",
+      "dateCreated": "Jan 2, 2017 3:33:06 PM",
+      "dateStarted": "Jan 2, 2017 5:16:13 PM",
+      "dateFinished": "Jan 2, 2017 5:18:21 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "def avgClusteringCoef(graph: Graph[_, _]): Double \u003d {\n    val triCountGraph \u003d graph.triangleCount()\n    val maxTrisGraph \u003d graph.degrees.mapValues(d \u003d\u003e d * (d - 1) / 2.0)\n    val clusterCoefGraph \u003d triCountGraph.vertices.innerJoin(maxTrisGraph) {\n        (vertexId, triCount, maxTris) \u003d\u003e if (maxTris \u003d\u003d 0) 0 else triCount / maxTris\n    }\n    clusterCoefGraph.map(_._2).sum() / graph.vertices.count()\n}",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:29:22 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367589768_-253804429",
+      "id": "20170102-153309_807153846",
+      "dateCreated": "Jan 2, 2017 3:33:09 PM",
+      "dateStarted": "Jan 2, 2017 5:18:15 PM",
+      "dateFinished": "Jan 2, 2017 5:18:22 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "val avgCC \u003d avgClusteringCoef(interesting)",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:14:07 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367601456_-1685070338",
+      "id": "20170102-153321_507336747",
+      "dateCreated": "Jan 2, 2017 3:33:21 PM",
+      "dateStarted": "Jan 2, 2017 5:18:22 PM",
+      "dateFinished": "Jan 2, 2017 5:18:41 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "def mergeMaps(m1: Map[VertexId, Int], m2: Map[VertexId, Int]): Map[VertexId, Int] \u003d {\n    def minThatExists(k: VertexId): Int \u003d {\n        math.min(\n            m1.getOrElse(k, Int.MaxValue),\n            m2.getOrElse(k, Int.MaxValue))\n    }\n    \n    (m1.keySet ++ m2.keySet).map(k \u003d\u003e (k, minThatExists(k))).toMap\n}\n  \ndef update(id: VertexId, state: Map[VertexId, Int], msg: Map[VertexId, Int]): Map[VertexId, Int] \u003d {\n    mergeMaps(state, msg)\n}\n\ndef checkIncrement(a: Map[VertexId, Int], b: Map[VertexId, Int], bid: VertexId): Iterator[(VertexId, Map[VertexId, Int])] \u003d {\n    val aplus \u003d a.map { case (v, d) \u003d\u003e v -\u003e (d + 1) }\n    if (b !\u003d mergeMaps(aplus, b)) {\n        Iterator((bid, aplus))\n    } else {\n        Iterator.empty\n    }\n}\n\ndef iterate(e: EdgeTriplet[Map[VertexId, Int], _]): Iterator[(VertexId, Map[VertexId, Int])] \u003d {\n    checkIncrement(e.srcAttr, e.dstAttr, e.dstId) ++\n    checkIncrement(e.dstAttr, e.srcAttr, e.srcId)\n}",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:31:03 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483374271583_-457774494",
+      "id": "20170102-172431_2040077971",
+      "dateCreated": "Jan 2, 2017 5:24:31 PM",
+      "dateStarted": "Jan 2, 2017 5:24:33 PM",
+      "dateFinished": "Jan 2, 2017 5:24:34 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "\nimport org.apache.spark.rdd.RDD\n  \ndef samplePathLengths[V, E](graph: Graph[V, E], fraction: Double \u003d 0.02): RDD[(VertexId, VertexId, Int)] \u003d {\n    val replacement \u003d false\n    val sample \u003d graph.vertices.map(v \u003d\u003e v._1).sample(replacement, fraction, 1729L)\n    val ids \u003d sample.collect().toSet\n\n    val mapGraph \u003d graph.mapVertices((id, v) \u003d\u003e {\n      if (ids.contains(id)) {\n        Map(id -\u003e 0)\n      } else {\n        Map[VertexId, Int]()\n      }\n    })\n\n    val start \u003d Map[VertexId, Int]()\n    val res \u003d mapGraph.ops.pregel(start)(update, iterate, mergeMaps)\n    res.vertices.flatMap { case (id, m) \u003d\u003e\n      m.map { case (k, v) \u003d\u003e\n        if (id \u003c k) {\n          (id, k, v)\n        } else {\n          (k, id, v)\n        }\n      }\n    }.distinct().cache()\n}",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:31:18 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483367627396_-1610398403",
+      "id": "20170102-153347_392223571",
+      "dateCreated": "Jan 2, 2017 3:33:47 PM",
+      "dateStarted": "Jan 2, 2017 5:24:37 PM",
+      "dateFinished": "Jan 2, 2017 5:24:37 PM",
+      "status": "FINISHED",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "text": "val paths \u003d samplePathLengths(interesting)\npaths.map(_._3).filter(_ \u003e 0).stats()\n\nval hist \u003d paths.map(_._3).countByValue()\nhist.toSeq.sorted.foreach(println)",
+      "user": "anonymous",
+      "dateUpdated": "Jan 2, 2017 5:33:19 PM",
+      "config": {
+        "colWidth": 12.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483373647739_-111990858",
+      "id": "20170102-171407_1278314225",
+      "dateCreated": "Jan 2, 2017 5:14:07 PM",
+      "dateStarted": "Jan 2, 2017 5:24:50 PM",
+      "dateFinished": "Jan 2, 2017 5:31:53 PM",
+      "status": "ERROR",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    },
+    {
+      "user": "anonymous",
+      "config": {},
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "jobName": "paragraph_1483374290783_509145464",
+      "id": "20170102-172450_385634934",
+      "dateCreated": "Jan 2, 2017 5:24:50 PM",
+      "status": "READY",
+      "errorMessage": "",
+      "progressUpdateIntervalMs": 500
+    }
+  ],
+  "name": "/aas/ch07-graph",
+  "id": "2C6NMQY51",
+  "angularObjects": {
+    "2C6T5PDM9:shared_process": [],
+    "2C4TRNEGU:shared_process": [],
+    "2C4RMR143:shared_process": [],
+    "2C6XTPSJ7:shared_process": [],
+    "2C5YK58G6:shared_process": [],
+    "2C7KNC5SH:shared_process": [],
+    "2C64DWKTU:shared_process": [],
+    "2C728NCNN:shared_process": [],
+    "2C69FHKJQ:shared_process": [],
+    "2C86JEPJU:shared_process": [],
+    "2C6YV5DUP:shared_process": [],
+    "2C5HFY9UY:shared_process": [],
+    "2C8DS8MD3:shared_process": [],
+    "2C7P9RW1P:shared_process": [],
+    "2C4X649H1:shared_process": [],
+    "2C8AUE9VC:shared_process": [],
+    "2C5H5WPWJ:shared_process": [],
+    "2C5D1RFYB:shared_process": [],
+    "2C6BQMJC8:shared_process": []
+  },
+  "config": {
+    "looknfeel": "default",
+    "personalizedMode": "false"
+  },
+  "info": {}
+}
