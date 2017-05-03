@@ -7,15 +7,15 @@ Code to accompany [Advanced Analytics with Spark](http://shop.oreilly.com/produc
 
 [![Advanced Analytics with Spark](http://akamaicovers.oreilly.com/images/0636920056591/lrg.jpg)](http://shop.oreilly.com/product/0636920056591.do)
 
-### 1st Edition (current)
-
-The source to accompany the 1st edition may be found in the 
-[`1st-edition` branch](https://github.com/sryza/aas/tree/1st-edition).
-
-### 2nd Edition (coming H1 2017)
+### 2nd Edition (current)
 
 The source to accompany the 2nd edition is found in this, the default 
 [`master` branch](https://github.com/sryza/aas).
+
+### 1st Edition
+
+The source to accompany the 1st edition may be found in the 
+[`1st-edition` branch](https://github.com/sryza/aas/tree/1st-edition).
 
 ### Build
 

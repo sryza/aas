@@ -87,11 +87,11 @@ class AssembleDocumentTermMatrix(private val spark: SparkSession) extends Serial
 
   def contentsToTerms(docs: Dataset[(String, String)], stopWordsFile: String): Dataset[(String, Seq[String])] = {
     val stopWords = scala.io.Source.fromFile(stopWordsFile).getLines().toSet
-    val bStopWords = spark.sparkContext.broadcast(stopWords).value
+    val bStopWords = spark.sparkContext.broadcast(stopWords)
 
     docs.mapPartitions { iter =>
       val pipeline = createNLPPipeline()
-      iter.map { case (title, contents) => (title, plainTextToLemmas(contents, stopWords, pipeline)) }
+      iter.map { case (title, contents) => (title, plainTextToLemmas(contents, bStopWords.value, pipeline)) }
     }
   }
 
