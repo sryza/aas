@@ -33,7 +33,7 @@ object RunIntro extends Serializable {
  
     val preview = spark.read.csv("hdfs:///user/ds/linkage")
     preview.show()
-    preview.schema.foreach(println)
+    preview.printSchema()
 
     val parsed = spark.read
       .option("header", "true")
@@ -41,8 +41,7 @@ object RunIntro extends Serializable {
       .option("inferSchema", "true")
       .csv("hdfs:///user/ds/linkage")
     parsed.show()
-    val schema = parsed.schema
-    schema.foreach(println)
+    parsed.printSchema()
 
     parsed.count()
     parsed.cache()
@@ -61,7 +60,7 @@ object RunIntro extends Serializable {
     summary.select("summary", "cmp_fname_c1", "cmp_fname_c2").show()
 
     val matches = parsed.where("is_match = true")
-    val misses = parsed.filter($"is_match" === lit(false))
+    val misses = parsed.filter($"is_match" === false)
     val matchSummary = matches.describe()
     val missSummary = misses.describe()
 
@@ -76,9 +75,9 @@ object RunIntro extends Serializable {
     """).show()
 
     val matchData = parsed.as[MatchData]
-    val scored = matchData.map(md => {
+    val scored = matchData.map { md =>
       (scoreMatchData(md), md.is_match)
-    }).toDF("score", "is_match")
+    }.toDF("score", "is_match")
     crossTabs(scored, 4.0).show()
   }
 

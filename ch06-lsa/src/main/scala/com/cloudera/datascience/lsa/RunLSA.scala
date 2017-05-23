@@ -39,7 +39,6 @@ object RunLSA {
     vecRdd.cache()
     val mat = new RowMatrix(vecRdd)
     val svd = mat.computeSVD(k, computeU=true)
-    val u = svd.U.rows.zipWithUniqueId()
 
     println("Singular values: " + svd.s)
     val topConceptTerms = topTermsInTopConcepts(svd, 10, 10, termIds)
