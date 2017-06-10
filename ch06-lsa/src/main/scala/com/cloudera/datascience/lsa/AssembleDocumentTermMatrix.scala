@@ -17,7 +17,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.spark.ml.feature.{CountVectorizer, IDF}
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
@@ -100,13 +100,34 @@ class AssembleDocumentTermMatrix(private val spark: SparkSession) extends Serial
   }
 
   /**
-   * Returns a document-term matrix where each element is the TF-IDF of the row's document and
-   * the column's term.
-   *
-   * @param docTexts a DF with two columns: title and text
-   */
+    * Add "nice" row ids to a dataframe, using `zipWithUniqueId`. Compared to:
+    * {{
+    * import org.apache.spark.sql.functions._
+    * df.withColumn("id",monotonically_increasing_id)
+    * }}
+    * which creates ids of more than 10 digits (8589934597),  this one generates smaller ids.
+    *
+    * @param spark
+    * @param df
+    * @return
+    */
+  def addNiceRowId(spark: SparkSession, df: DataFrame): DataFrame = {
+    import org.apache.spark.sql.types.{StructType, StructField, LongType}
+    val schema = df.schema
+    val rowsWithId = df.rdd.zipWithUniqueId.map {
+      case (r: Row, id: Long) => Row.fromSeq(id +: r.toSeq)
+    }
+    spark.sqlContext.createDataFrame(rowsWithId, StructType(StructField("id", LongType, nullable = false) +: df.schema.fields))
+  }
+
+  /**
+    * Returns a document-term matrix where each element is the TF-IDF of the row's document and
+    * the column's term.
+    *
+    * @param docTexts a DF with two columns: title and text
+    */
   def documentTermMatrix(docTexts: Dataset[(String, String)], stopWordsFile: String, numTerms: Int)
-    : (DataFrame, Array[String], Map[Long, String], Array[Double]) = {
+  : (DataFrame, Array[String], Array[Double]) = {
     val terms = contentsToTerms(docTexts, stopWordsFile)
 
     val termsDF = terms.toDF("title", "terms")
@@ -121,12 +142,10 @@ class AssembleDocumentTermMatrix(private val spark: SparkSession) extends Serial
 
     docTermFreqs.cache()
 
-    val docIds = docTermFreqs.rdd.map(_.getString(0)).zipWithUniqueId().map(_.swap).collect().toMap
-
     val idf = new IDF().setInputCol("termFreqs").setOutputCol("tfidfVec")
     val idfModel = idf.fit(docTermFreqs)
     val docTermMatrix = idfModel.transform(docTermFreqs).select("title", "tfidfVec")
 
-    (docTermMatrix, termIds, docIds, idfModel.idf.toArray)
+    (addNiceRowId(spark, docTermMatrix), termIds, idfModel.idf.toArray)
   }
 }
