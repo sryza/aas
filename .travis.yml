@@ -1,8 +1,14 @@
 language: java
 sudo: false
 install: echo "Skipping install"
-script: mvn -Dmaven.javadoc.skip=true -B clean compile
+script: mvn ${SPARK} -Dmaven.javadoc.skip=true -B clean compile
 jdk: oraclejdk8
+matrix:
+  include:
+    # Covers Spark 2.1.x
+    - env: SPARK=
+    # Covers Spark 2.2.x
+    - env: SPARK=-Pspark-2.2
 cache:
   directories:
     - $HOME/.m2
