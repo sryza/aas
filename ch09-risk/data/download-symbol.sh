@@ -4,4 +4,4 @@
 #
 # See LICENSE file for further information.
 
-curl -o $2/$1.csv https://ichart.yahoo.com/table.csv?s=$1&a=0&b=1&c=2000&d=0&e=31&f=2013&g=d&ignore=.csv
+wget -O ${2}/${1}.csv "http://www.google.com/finance/historical?q=${1}&startdate=Jan+01%2C+2000&enddate=Dec+31%2C+2013&output=csv"
