@@ -65,7 +65,7 @@ class RunRisk(private val spark: SparkSession) {
     lines.tail.map { line =>
       val cols = line.split(',')
       val date = LocalDate.parse(cols(0), formatter)
-      val value = cols(1).toDouble
+      val value = cols(4).toDouble
       (date, value)
     }.reverse.toArray
   }
