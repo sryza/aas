@@ -4,9 +4,9 @@ install: echo "Skipping install"
 script: mvn ${SPARK} ${JAVA} ${SCALA} -Dmaven.javadoc.skip=true -B clean compile
 matrix:
  include:
-   # Covers Java 7, Oracle JDK, and Spark 1.2.x
-   - jdk: oraclejdk7
-   # Covers Open JDK, Spark 1.3.x
+   # Covers Java 7 and Spark 1.2.x
+   - jdk: openjdk7
+   # Covers Spark 1.3.x
    - jdk: openjdk7
      env: SPARK=-Pspark-1.3
    # Covers Spark 1.4
