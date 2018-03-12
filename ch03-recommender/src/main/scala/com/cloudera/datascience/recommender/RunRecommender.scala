@@ -287,8 +287,8 @@ class RunRecommender(private val spark: SparkSession) {
       select("user", "correct")
 
     // Combine these, compute their ratio, and average over all users
-    val meanAUC = allCounts.join(correctCounts, "user").
-      select($"user", ($"correct" / $"total").as("auc")).
+    val meanAUC = allCounts.join(correctCounts, Seq("user"), "left_outer").
+      select($"user", (coalesce($"correct", lit(0)) / $"total").as("auc")).
       agg(mean("auc")).
       as[Double].first()
 
