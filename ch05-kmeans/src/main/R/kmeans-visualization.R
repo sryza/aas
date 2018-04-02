@@ -65,3 +65,4 @@ colors = sapply(clusters, function(c) palette[c])
 plot3d(projected_data, col = colors, size = 10)
 
 unpersist(numeric_only)
+sparkR.session.stop()
