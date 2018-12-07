@@ -11,6 +11,8 @@ matrix:
     - env: SPARK=-Pspark-2.2
     # Covers Spark 2.3.x
     - env: SPARK=-Pspark-2.3
+    # Covers Spark 2.4.x
+    - env: SPARK=-Pspark-2.4
 cache:
   directories:
     - $HOME/.m2
