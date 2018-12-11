@@ -2,7 +2,7 @@ language: java
 sudo: false
 install: echo "Skipping install"
 script: mvn ${SPARK} -Dmaven.javadoc.skip=true -B clean compile
-jdk: oraclejdk8
+jdk: openjdk8
 matrix:
   include:
     # Covers Spark 2.1.x

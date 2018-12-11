@@ -16,9 +16,9 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <java.version>1.8</java.version>
-    <scala.minor.version>2.11</scala.minor.version>
+    <scala.minor.version>2.12</scala.minor.version>
     <scala.complete.version>${scala.minor.version}.8</scala.complete.version>
-    <spark.version>2.2.0</spark.version>
+    <spark.version>2.4.0</spark.version>
   </properties>
 
   <build>
@@ -26,7 +26,7 @@
       <plugin>
         <groupId>net.alchim31.maven</groupId>
         <artifactId>scala-maven-plugin</artifactId>
-        <version>3.3.1</version>
+        <version>3.4.4</version>
         <configuration>
           <scalaVersion>${scala.complete.version}</scalaVersion>
           <scalaCompatVersion>${scala.minor.version}</scalaCompatVersion>
