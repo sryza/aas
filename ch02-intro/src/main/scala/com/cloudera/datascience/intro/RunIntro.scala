@@ -107,7 +107,7 @@ object RunIntro extends Serializable {
       agg(first("value"))
   }
 
-  def longForm(desc:DataFrame): DataFrame = {
+  def longForm(desc: DataFrame): DataFrame = {
     import desc.sparkSession.implicits._ // For toDF RDD -> DataFrame conversion
     val columns = desc.schema.map(_.name)
     desc.flatMap(row => {
