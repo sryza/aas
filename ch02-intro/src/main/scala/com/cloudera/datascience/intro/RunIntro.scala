@@ -109,11 +109,10 @@ object RunIntro extends Serializable {
 
   def longForm(desc: DataFrame): DataFrame = {
     import desc.sparkSession.implicits._ // For toDF RDD -> DataFrame conversion
-    val schema = desc.schema
+    val columns = desc.schema.map(_.name)
     desc.flatMap(row => {
-      val metric = row.getString(0)
-      (1 until row.size).map(i => (metric, schema(i).name, row.getString(i).toDouble))
-    })
-    .toDF("metric", "field", "value")
+      val metric = row.getAs[String](columns.head)
+      columns.tail.map(columnName => (metric, columnName, row.getAs[String](columnName).toDouble))
+    } ).toDF("metric", "field", "value")
   }
 }
