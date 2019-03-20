@@ -22,6 +22,16 @@ The source to accompany the 1st edition may be found in the
 [Apache Maven](http://maven.apache.org/) 3.2.5+ and Java 8+ are required to build. From the root level of the project, 
 run `mvn package` to compile artifacts into `target/` subdirectories beneath each chapter's directory.
 
+### Running the Examples
+- Install [Apache Spark](https://spark.apache.org) for your platform, following the instructions for the [latest release](https://spark.apache.org/docs/latest/).
+- Build the projects according the instructions above.
+- Launch the driver program using `spark-submit`
+```bash
+# working directory should be your Apache Spark installation root
+bin/spark-submit /path/to/code/aas/$CHAPTER/target/$CHAPTER-jar-with-dependencies-$VERSION.jar
+```
+- Some examples might require that URI paths to the data be updated to your own HDFS or local filesystem locations.
+
 ### Data Sets
 
 - Chapter 2: https://archive.ics.uci.edu/ml/machine-learning-databases/00210/
