@@ -107,13 +107,15 @@ object RunIntro extends Serializable {
       agg(first("value"))
   }
 
-  def longForm(desc: DataFrame): DataFrame = {
+  def longForm(desc:DataFrame): DataFrame = {
     import desc.sparkSession.implicits._ // For toDF RDD -> DataFrame conversion
-    val schema = desc.schema
+    val columns = desc.schema.map(_.name)
     desc.flatMap(row => {
-      val metric = row.getString(0)
-      (1 until row.size).map(i => (metric, schema(i).name, row.getString(i).toDouble))
-    })
-    .toDF("metric", "field", "value")
+      val metric = row.getAs[String](columns.head)
+      val valueColumns = columns match {
+        case x :: tail => tail
+      }
+      valueColumns.map(columnName => (metric, columnName, row.getAs[String](columnName).toDouble))
+    } ).toDF("metric", "field", "value")
   }
 }
