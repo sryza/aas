@@ -112,10 +112,7 @@ object RunIntro extends Serializable {
     val columns = desc.schema.map(_.name)
     desc.flatMap(row => {
       val metric = row.getAs[String](columns.head)
-      val valueColumns = columns match {
-        case x :: tail => tail
-      }
-      valueColumns.map(columnName => (metric, columnName, row.getAs[String](columnName).toDouble))
+      columns.tail.map(columnName => (metric, columnName, row.getAs[String](columnName).toDouble))
     } ).toDF("metric", "field", "value")
   }
 }
