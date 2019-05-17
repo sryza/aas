@@ -5,12 +5,8 @@ script: mvn ${SPARK} -Dmaven.javadoc.skip=true -B clean compile
 jdk: openjdk8
 matrix:
   include:
-    # Covers Spark 2.1.x
-    - env: SPARK=
-    # Covers Spark 2.2.x
-    - env: SPARK=-Pspark-2.2
     # Covers Spark 2.3.x
-    - env: SPARK=-Pspark-2.3
+    - env: SPARK=
     # Covers Spark 2.4.x
     - env: SPARK=-Pspark-2.4
 cache:
