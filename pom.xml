@@ -419,6 +419,11 @@
       <id>spark-2.4</id>
       <properties>
         <spark.version>2.4.3</spark.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>scala-2.12</id>
+      <properties>
         <scala.minor.version>2.12</scala.minor.version>
         <scala.complete.version>${scala.minor.version}.8</scala.complete.version>
       </properties>

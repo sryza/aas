@@ -7,8 +7,8 @@ matrix:
   include:
     # Covers Spark 2.3.x
     - env: SPARK=
-    # Covers Spark 2.4.x
-    - env: SPARK=-Pspark-2.4
+    # Covers Spark 2.4.x + Scala 2.12
+    - env: SPARK="-Pspark-2.4 -Pscala-2.12"
 cache:
   directories:
     - $HOME/.m2
