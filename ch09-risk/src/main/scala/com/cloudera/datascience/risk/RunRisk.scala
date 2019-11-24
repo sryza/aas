@@ -225,7 +225,7 @@ class RunRisk(private val spark: SparkSession) {
     val bandwidth = 1.06 * stddev * math.pow(samples.size, -.2)
 
     // Using toList before toArray avoids a Scala bug
-    val domain = Range.Double(min, max, (max - min) / 100).toList.toArray
+    val domain = Range.BigDecimal(min, max, (max - min) / 100).map(_.toDouble).toList.toArray
     val kd = new KernelDensity().
       setSample(samples.toSeq.toDS.rdd).
       setBandwidth(bandwidth)
@@ -248,7 +248,7 @@ class RunRisk(private val spark: SparkSession) {
     val bandwidth = 1.06 * stddev * math.pow(count, -.2)
 
     // Using toList before toArray avoids a Scala bug
-    val domain = Range.Double(min, max, (max - min) / 100).toList.toArray
+    val domain = Range.BigDecimal(min, max, (max - min) / 100).map(_.toDouble).toList.toArray
     val kd = new KernelDensity().
       setSample(samples.rdd).
       setBandwidth(bandwidth)

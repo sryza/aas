@@ -107,7 +107,7 @@ class RunKMeans(private val spark: SparkSession) {
     val pipeline = new Pipeline().setStages(Array(assembler, kmeans))
 
     val kmeansModel = pipeline.fit(data).stages.last.asInstanceOf[KMeansModel]
-    kmeansModel.computeCost(assembler.transform(data)) / data.count()
+    kmeansModel.summary.trainingCost
   }
 
   def clusteringScore1(data: DataFrame, k: Int): Double = {
@@ -126,7 +126,7 @@ class RunKMeans(private val spark: SparkSession) {
     val pipeline = new Pipeline().setStages(Array(assembler, kmeans))
 
     val kmeansModel = pipeline.fit(data).stages.last.asInstanceOf[KMeansModel]
-    kmeansModel.computeCost(assembler.transform(data)) / data.count()
+    kmeansModel.summary.trainingCost
   }
 
   def clusteringTake1(data: DataFrame): Unit = {
@@ -161,7 +161,7 @@ class RunKMeans(private val spark: SparkSession) {
     val pipelineModel = pipeline.fit(data)
 
     val kmeansModel = pipelineModel.stages.last.asInstanceOf[KMeansModel]
-    kmeansModel.computeCost(pipelineModel.transform(data)) / data.count()
+    kmeansModel.summary.trainingCost
   }
 
   def clusteringTake2(data: DataFrame): Unit = {
@@ -215,7 +215,7 @@ class RunKMeans(private val spark: SparkSession) {
     val pipelineModel = pipeline.fit(data)
 
     val kmeansModel = pipelineModel.stages.last.asInstanceOf[KMeansModel]
-    kmeansModel.computeCost(pipelineModel.transform(data)) / data.count()
+    kmeansModel.summary.trainingCost
   }
 
   def clusteringTake3(data: DataFrame): Unit = {
