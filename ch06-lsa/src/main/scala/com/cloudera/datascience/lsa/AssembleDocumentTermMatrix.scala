@@ -34,7 +34,7 @@ class AssembleDocumentTermMatrix(private val spark: SparkSession) extends Serial
     // Wikipedia has updated their dumps slightly since Cloud9 was written, so this hacky replacement is sometimes
     // required to get parsing to work.
     val hackedPageXml = pageXml.replaceFirst(
-      "<text xml:space=\"preserve\" bytes=\"\\d+\">", "<text xml:space=\"preserve\">")
+      "<text bytes=\"\\d+\" xml:space=\"preserve\">", "<text xml:space=\"preserve\">")
 
     WikipediaPage.readPage(page, hackedPageXml)
     if (page.isEmpty || !page.isArticle || page.isRedirect || page.isDisambiguation ||
