@@ -194,7 +194,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <hadoop.version>2.7.7</hadoop.version>
+    <hadoop.version>2.10.2</hadoop.version>
     <java.version>1.8</java.version>
     <scala.minor.version>2.11</scala.minor.version>
     <scala.complete.version>${scala.minor.version}.12</scala.complete.version>
