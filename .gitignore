@@ -6,4 +6,4 @@ target
 *.iml
 .idea
 .DS_Store
-
+*ipynb_checkpoints
